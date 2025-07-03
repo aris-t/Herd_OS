@@ -1,0 +1,92 @@
+import subprocess
+import sys
+import os
+import time
+import logging
+from datetime import datetime
+import ntplib
+
+BRANCH = "main"
+MAX_RETRIES = 5
+RETRY_DELAY = 60  # seconds
+LOG_FILE = "logs.txt"
+
+# -------------------------
+# Logging setup
+# -------------------------
+logger = logging.getLogger("AutoUpdater")
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+
+file_handler = logging.FileHandler(LOG_FILE)
+file_handler.setFormatter(formatter)
+
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+# -------------------------
+# Functions
+# -------------------------
+def run_cmd(cmd):
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Command failed: {' '.join(cmd)}\n{result.stderr}")
+    return result.stdout.strip()
+
+def has_updates():
+    run_cmd(["git", "fetch"])
+    local = run_cmd(["git", "rev-parse", BRANCH])
+    remote = run_cmd(["git", "rev-parse", f"origin/{BRANCH}"])
+    return local != remote
+
+def pull_and_restart():
+    logger.info("🔄 New version detected. Pulling updates...")
+    run_cmd(["git", "pull", "origin", BRANCH])
+    logger.info("✅ Pulled latest code. Restarting...")
+    python = sys.executable
+    os.execv(python, [python] + sys.argv)
+
+def self_check():
+    logger.info("🔍 Running self check... OK")
+
+def sync_time_from_nist():
+    try:
+        client = ntplib.NTPClient()
+        response = client.request('time.nist.gov', version=3)
+        t = datetime.fromtimestamp(response.tx_time)
+        logger.info(f"NIST Time: {t.isoformat()}")
+    except Exception as e:
+        logger.warning(f"NIST time sync failed: {e}")
+
+# -------------------------
+# Main logic
+# -------------------------
+def main_loop():
+    retries = 0
+    while retries < MAX_RETRIES:
+        try:
+            if has_updates():
+                pull_and_restart()
+            break  # No updates, continue
+        except Exception as e:
+            retries += 1
+            logger.warning(f"Update check failed ({retries}/{MAX_RETRIES}): {e}")
+            time.sleep(RETRY_DELAY)
+    else:
+        logger.error("Maximum retry limit reached. Exiting.")
+        sys.exit(1)
+
+    self_check()
+    sync_time_from_nist()
+
+    # Your main app logic here:
+    while True:
+        logger.info("Running main application loop...")
+        time.sleep(60)
+
+if __name__ == "__main__":
+    main_loop()

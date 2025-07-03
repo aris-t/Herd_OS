@@ -1,0 +1,151 @@
+# === PYTHON ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+.env
+.venv/
+venv/
+pip-wheel-metadata/
+*.sqlite3
+*.db
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyInstaller
+*.spec
+
+# === PYTORCH / ML ===
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.pb
+*.tflite
+*.npz
+*.npy
+*.h5
+runs/             # TensorBoard default log dir
+lightning_logs/   # PyTorch Lightning logs
+checkpoints/
+*.mlmodel
+*.joblib
+*.sav
+*.pkl
+wandb/
+weights/
+*.jit
+
+# === NODE / REACT ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.pnp.*
+.pnpm-debug.log
+.eslintcache
+.next/
+out/
+build/
+dist/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# === OS / EDITORS / TOOLS ===
+*.swp
+*~
+.idea/
+.vscode/
+*.bak
+*.tmp
+*.orig
+*.patch
+*.rej
+Thumbs.db
+Desktop.ini
+
+# === GIT / MISC ===
+.git/
+*.lock
+*.log
+*.pid
+*.seed
+*.cover
+coverage.*
+.cache/
+.tox/
+.mypy_cache/
+.pytest_cache/
+*.manifest
+*.map
+
+# === LARGE FILES / MEDIA ===
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.ico
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+*.bin
+*.exe
+*.dll
+*.iso
+*.dmg
+*.svg
+
+# === FRONTEND TOOLS ===
+coverage/
+.storybook/
+.cypress/
+cypress/videos/
+cypress/screenshots/
+
+# Functional
+logs.txt
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/frontend/coverage
+
+# production
+/frontend/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
