@@ -80,13 +80,19 @@ def main_loop():
         logger.error("Maximum retry limit reached. Exiting.")
         sys.exit(1)
 
+    # Perform self-check and time sync after update check
     self_check()
+
+    # Sync time from NIST / GPS
     sync_time_from_nist()
 
-    # Your main app logic here:
-    while True:
-        logger.info("Running main application loop...")
-        time.sleep(60)
+    # LAUNCH:
+    logger.info("✅ Setup Passed. Starting main application...")
+
+    python = sys.executable
+    os.execv(python, [python, "launch.py"])
+
+    logger.info("Startup completed successfully.")
 
 if __name__ == "__main__":
     main_loop()

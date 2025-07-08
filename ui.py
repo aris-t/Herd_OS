@@ -2,45 +2,77 @@ from rich.console import Console
 from rich.table import Table
 from rich.prompt import Prompt
 from rich.live import Live
-from rich.panel import Panel
 import threading
 import time
 import queue
-import random
 import sys
 
 import zenoh
 
-devices = {
-    "Device-A": False,
-    "Device-B": False,
-    "Device-C": False
-}
-
 message_queue = queue.Queue()
+devices = {}  # device_id: {"ttl": int, "online": bool, "name": str, "ip": str}
 console = Console()
 
-def iff_worker():
-    while True:
-        for device in devices:
-            devices[device] = random.choice([True, False])
+TTL_SECONDS = 10
+
+def listener(sample):
+    try:
+        msg = bytes(sample.payload).decode("utf-8").strip()
+        parts = msg.split(",")
+        if len(parts) != 4:
+            return
+        timestamp, device_id, name, ip = parts
+
+        devices[device_id] = {
+            "ttl": TTL_SECONDS,
+            "online": True,
+            "name": name.strip(),
+            "ip": ip.strip()
+        }
+
         message_queue.put(("update", dict(devices)))
-        time.sleep(3)
+    except Exception as e:
+        console.print(f"[red]Error parsing IFF message:[/red] {e}")
+
+def ttl_monitor():
+    while True:
+        time.sleep(1)
+        updated = False
+        for device_id in list(devices):
+            devices[device_id]["ttl"] -= 1
+            if devices[device_id]["ttl"] <= 0:
+                if devices[device_id]["online"]:
+                    devices[device_id]["online"] = False
+                    updated = True
+                devices[device_id]["ttl"] = 0  # keep from going negative
+        if updated:
+            message_queue.put(("update", dict(devices)))
+
+def start_iff_listener():
+    config = zenoh.Config()
+    session = zenoh.open(config)
+    session.declare_subscriber("global/IFF", listener)
+    while True:
+        time.sleep(1)
 
 def render_table(device_status):
     table = Table(title="Connected Devices")
-    table.add_column("Device", style="cyan", no_wrap=True)
+    table.add_column("Device ID", style="cyan", no_wrap=True)
+    table.add_column("Name", style="magenta")
+    table.add_column("IP", style="yellow")
     table.add_column("Status", style="green")
+    table.add_column("TTL", style="white", justify="right")
 
-    for name, status in device_status.items():
-        table.add_row(name, "🟢 Online" if status else "🔴 Offline")
+    for device_id, info in device_status.items():
+        status = "🟢 Online" if info["online"] else "🔴 Offline"
+        ttl = str(info["ttl"])
+        table.add_row(device_id, info["name"], info["ip"], status, ttl)
     return table
 
 def command_interface():
     config = zenoh.Config()
     session = zenoh.open(config)
-
-    pub = session.declare_publisher('global/COMMAND')
+    pub = session.declare_publisher("global/COMMAND")
 
     while True:
         command = Prompt.ask("[bold yellow]Enter Command (list, ping, exit)[/bold yellow]")
@@ -60,7 +92,6 @@ def main_interface():
 
         for cmd, resp in command_log[-10:]:
             log_table.add_row(cmd, resp)
-
         return log_table
 
     def render():
@@ -91,11 +122,9 @@ def main_interface():
                 continue
 
 if __name__ == "__main__":
-    # Start the IFF worker thread
-    threading.Thread(target=iff_worker, daemon=True).start()
-
-    # Start command line input in the main thread (important for terminal input)
     try:
+        threading.Thread(target=start_iff_listener, daemon=True).start()
+        threading.Thread(target=ttl_monitor, daemon=True).start()
         threading.Thread(target=command_interface, daemon=True).start()
         main_interface()
     except KeyboardInterrupt:

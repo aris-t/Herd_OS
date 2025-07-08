@@ -1,23 +1,24 @@
 import zenoh
-import time
 
 def listener(sample):
-    payload = bytes(sample.payload).decode("utf-8")
-    print(f"Received on '{sample.key_expr}': {payload}")
+     print(f"Received: {bytes(sample.payload).decode('utf-8')}")
 
-if __name__ == "__main__":
+def main():
     config = zenoh.Config()
     session = zenoh.open(config)
 
-    sub_1 = session.declare_subscriber('global/*', listener)
-    sub_2 = session.declare_subscriber('camera/*', listener)
+    topics = [
+        "global/IFF",
+        "global/COMMAND",
+        "camera/*"
+    ]
 
-    try:
-        print("Subscriber running. Press Ctrl+C to stop.")
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\nShutting down...")
-        sub_1.undeclare()
-        sub_2.undeclare()
-        session.close()
+    for topic in topics:
+        session.declare_subscriber(topic, listener)
+
+    print("Subscribed. Waiting for messages...")
+    while True:
+        pass  # Keep the app alive
+
+if __name__ == "__main__":
+    main()

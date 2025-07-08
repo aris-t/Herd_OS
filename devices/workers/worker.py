@@ -2,10 +2,13 @@ import multiprocessing
 import time
 
 class Worker(multiprocessing.Process):
-    def __init__(self, name):
+    def __init__(self, device, name):
         super().__init__()
+        self.device = device
+        self.logger = device.logger
+        
         self.name = name
-        self.is_stopped = False
+        self.is_stopped = self.device.is_stopped
 
     def run(self):
         while not self.is_stopped:
