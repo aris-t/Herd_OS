@@ -11,10 +11,10 @@ from utils.setup_logger import setup_logger
 # ----------------------------------------
 # Signal Handling
 # ----------------------------------------
+logger = setup_logger("Main")
 devices = []
 
 def signal_handler(sig, frame):
-    logger = setup_logger("Main")
     logger.info("Ctrl+C detected. Ending all processes...")
     for device in devices:
         device.stop()

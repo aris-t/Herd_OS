@@ -12,17 +12,16 @@ from utils.setup_logger import setup_logger
 class Camera(Device):
     def __init__(self):
         super().__init__()
-        self.name = "Gait Camera"
 
         self.multicast_ip = "239.255.12.42"
         self.port = 5555
         self.camera_endpoint = f"udp://{self.multicast_ip}:{self.port}"
         self.target_framerate = 30
-        self.target_resolution = "1920x1080"
+        self.target_resolution = "640x480"
         self.target_bitrate = 4000
 
         self.processes = [
-            Camera_Controller(self, "Camera", DEBUG=True)
+            Camera_Controller(self, "Camera_Controller", DEBUG=True)
         ]
 
     def __setup__(self):

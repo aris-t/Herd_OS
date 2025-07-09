@@ -17,7 +17,10 @@ class IFF(Worker):
 
         self.logger.info("IFF Publisher Running.")
         while not self.is_stopped.value:
-            ping = f"{time.time()}, {self.device.device_id}, {self.device.name}, {self.device.ip}"
-            self.pub.put(ping)
-            self.logger.info(f"IFF Ping: {ping}")
-            time.sleep(1)
+            try:
+                ping = f"{time.time()}, {self.device.device_id}, {self.device.name}, {self.device.ip}"
+                self.pub.put(ping)
+                self.logger.info(f"IFF Ping: {ping}")
+                time.sleep(1)
+            except Exception as e:
+                self.logger.error(f"IFF Publisher Error: {e}")

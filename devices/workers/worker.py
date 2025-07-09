@@ -13,11 +13,11 @@ class Worker(multiprocessing.Process):
     def run(self):
         while not self.is_stopped:
             time.sleep(1)
-            print(f"Process {self.name} is running")
+            self.logger.info(f"Process {self.name} is running")
 
     def stop(self):
-        print(f"[{self.device_id}] Stopping ...")
         self.is_stopped = True
+        self.logger.info(f"[{self.device.device_id}][{self.name}] Stopping ...")
         time.sleep(1)  # Give some time for the process to stop gracefully
         self.terminate()
-        print(f"Process {self.name} has ended")
+        self.logger.info(f"Process {self.name} has ended")

@@ -59,6 +59,8 @@ class Device:
             process.stop()
         self.logger.info("Device stopped.")
 
+    # Logistics and Utility Methods
+
     def check_ip(self):
         try:
             # Create a dummy socket connection to determine the outbound interface
@@ -92,9 +94,10 @@ class Device:
         
     @name.setter
     def name(self, value):
-        """Update device name in device.cfg JSON file"""
+        """Safely update only the device_name property in device.cfg JSON file"""
         with self.lock:
             data = {}
+            # Read existing config if it exists
             if CONFIG_PATH.exists():
                 try:
                     with CONFIG_PATH.open("r") as f:
@@ -102,18 +105,21 @@ class Device:
                 except Exception as e:
                     self.logger.warning(f"Failed to read device.cfg: {e}")
             old_name = data.get('device_name', 'unknown')
-            data['device_name'] = value
-            try:
-                with CONFIG_PATH.open("w") as f:
-                    json.dump(data, f, indent=2)
-                self.logger.info(f"SETTER FIRED: Device renamed from '{old_name}' to '{value}'")
-            except Exception as e:
-                self.logger.warning(f"Failed to write device.cfg: {e}")
-            # You can add any additional logic here
-            self._on_name_changed(old_name, value)
+            # Only update the device_name property
+            if data.get('device_name') != value:
+                data['device_name'] = value
+                try:
+                    # Write back the updated config (preserving other keys)
+                    with CONFIG_PATH.open("w") as f:
+                        json.dump(data, f, indent=2)
+                    self.logger.info(f"SETTER FIRED: Device renamed from '{old_name}' to '{value}'")
+                except Exception as e:
+                    self.logger.warning(f"Failed to write device.cfg: {e}")
+                self._on_name_changed(old_name, value)
+            else:
+                self.logger.info("Device name unchanged; no write performed.")
     
     def _on_name_changed(self, old_name, new_name):
         """Called whenever name changes"""
         if self.DEBUG:
             self.logger.info(f"Name change event: {old_name} -> {new_name}")
-        
