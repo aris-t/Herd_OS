@@ -1,0 +1,33 @@
+# Core dependencies
+zenoh>=0.10.0
+
+# Rich terminal UI library
+rich>=13.0.0
+
+# FastAPI and web server
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+
+# GStreamer Python bindings for camera streaming
+PyGObject>=3.42.0
+
+# NTP time synchronization
+ntplib>=0.4.0
+
+# Standard library modules (no installation needed)
+# - multiprocessing
+# - threading
+# - queue
+# - subprocess
+# - logging
+# - datetime
+# - pathlib
+# - json
+# - uuid
+# - socket
+# - signal
+# - sys
+# - os
+# - time
+# - random
