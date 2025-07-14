@@ -62,6 +62,8 @@ class Camera_Controller(Worker):
         if not server.attach(None):
             self.logger.error("Failed to attach RTSP server")
             return
+        else:
+            self.logger.info(f"RTSP server successfully attached on port {self.port}")
 
         # 🔁 Start local record + display pipeline (separate from RTSP)
         local_pipeline_str = (
@@ -99,6 +101,12 @@ class Camera_Controller(Worker):
 
         self.logger.info(f"RTSP server running at rtsp://{self.device.ip}:{self.port}/stream")
         self.logger.info(f"Recording to file: {output_file}")
+        
+        if os.path.exists(output_file):
+            self.logger.info(f"Output file {output_file} exists.")
+        else:
+            self.logger.warning(f"Output file {output_file} does not exist, WTF!.")
+
         GLib.timeout_add(2000, self.broadcast_status, self.pub)
 
         try:
