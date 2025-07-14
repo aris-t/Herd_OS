@@ -13,7 +13,7 @@ class Camera(Device):
     def __init__(self):
         super().__init__()
 
-        self.multicast_ip = self.ip
+        self.multicast_ip = "239.255.42.42"
         self.port = 5555
         self.camera_endpoint = f"udp://{self.multicast_ip}:{self.port}"
         self.target_framerate = 30
