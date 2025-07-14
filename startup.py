@@ -62,10 +62,21 @@ def sync_time_from_nist():
     except Exception as e:
         logger.warning(f"NIST time sync failed: {e}")
 
+def get_version():
+    try:
+        # Use `git describe` if you use tags, otherwise fallback to short hash
+        return run_cmd(["git", "describe", "--always", "--dirty"])
+    except Exception as e:
+        logger.warning(f"Could not determine version: {e}")
+        return "unknown"
+
 # -------------------------
 # Main logic
 # -------------------------
 def main_loop():
+    logger.info("\n\n 🐑 Starting Herd OS...")
+    logger.info(f"Version {get_version()} | Branch: {BRANCH} \n")
+
     retries = 0
     while retries < MAX_RETRIES:
         try:

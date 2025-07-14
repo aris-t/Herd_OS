@@ -19,8 +19,8 @@ class Camera_Controller(Worker):
         super().__init__(device,name)
         self.DEBUG = DEBUG
         self.device = device
-        self.multicast_ip = "239.255.12.42"
-        self.port = 5555
+        self.multicast_ip = device.multicast_ip
+        self.port = device.port
 
     def broadcast_status(self, publisher):
         msg = f"udp://{self.multicast_ip}:{self.port}"
@@ -38,20 +38,29 @@ class Camera_Controller(Worker):
         trials_dir = os.path.join(base_dir, "trials")
         if not os.path.exists(trials_dir):
             os.makedirs(trials_dir)
-        output_file = os.path.join(trials_dir, "output.mp4")  # Absolute path to output file
+        output_file = os.path.join(trials_dir, f"output_{time.time()}.mkv")  # Absolute path to output file
 
         if self.DEBUG:
             # Hardwareless testing mode: stream and save to file
             pipeline_str = (
-            "videotestsrc pattern=ball ! "
-            "videoconvert ! "
-            "tee name=t "
-            "t. ! queue ! video/x-raw,width=640,height=480,framerate=30/1 ! "
-            "x264enc tune=zerolatency bitrate=500 speed-preset=superfast ! "
-            "rtph264pay config-interval=1 pt=96 ! "
-            f"udpsink host={self.multicast_ip} port={self.port} auto-multicast=true "
-            "t. ! queue ! x264enc tune=zerolatency bitrate=500 speed-preset=superfast ! "
-            "mp4mux ! filesink location={}".format(output_file)
+                "videotestsrc pattern=ball ! "
+                "videoconvert ! "
+                "tee name=t "
+
+                # Branch 1: UDP multicast stream
+                "t. ! queue ! video/x-raw,width=640,height=480,framerate=30/1 ! "
+                "x264enc tune=zerolatency bitrate=500 speed-preset=superfast ! "
+                "rtph264pay config-interval=1 pt=96 ! "
+                f"udpsink host={self.multicast_ip} port={self.port} auto-multicast=true "
+
+                # Branch 2: Save to file (valid MP4)
+                "t. ! queue ! video/x-raw,width=640,height=480,framerate=30/1 ! "
+                "x264enc tune=zerolatency bitrate=500 speed-preset=superfast ! "
+                "h264parse ! matroskamux ! "
+                "filesink location={} async=false sync=false ".format(output_file) +
+
+                # Branch 3: Visual output
+                "t. ! queue ! autovideosink"
             )
         else:
             # Real camera pipeline (replace videotestsrc with actual camera src if needed)
@@ -70,6 +79,28 @@ class Camera_Controller(Worker):
         try:
             pipeline = Gst.parse_launch(pipeline_str)
             pipeline.set_state(Gst.State.PLAYING)
+
+            # Handle messages
+            bus = pipeline.get_bus()
+            bus.add_signal_watch()
+
+            def on_message(bus, message):
+                if message.type == Gst.MessageType.EOS:
+                    self.logger.info("End of stream")
+                    # Graceful shutdown: stop main loop
+                    if hasattr(self, 'main_loop') and self.main_loop.is_running():
+                        self.main_loop.quit()
+                elif message.type == Gst.MessageType.ERROR:
+                    err, debug = message.parse_error()
+                    self.logger.error(f"Error received from element {message.src.name}: {err.message}")
+                    self.logger.error(f"Debugging information: {debug if debug else 'none'}")
+                    # Graceful shutdown on error
+                    if hasattr(self, 'main_loop') and self.main_loop.is_running():
+                        self.main_loop.quit()
+                return True
+
+            bus.connect("message", on_message)
+
         except Exception as e:
             self.logger.error(f"Failed to start GStreamer pipeline: {e}")
             return
@@ -86,4 +117,21 @@ class Camera_Controller(Worker):
         except KeyboardInterrupt:
             self.logger.warning("Stopping camera stream...")
         finally:
-            pipeline.set_state(Gst.State.NULL)
+            if pipeline:
+                self.logger.info("Sending EOS...")
+                pipeline.send_event(Gst.Event.new_eos())
+
+                # Wait for EOS or ERROR
+                while True:
+                    msg = bus.timed_pop_filtered(
+                        Gst.SECOND * 5,
+                        Gst.MessageType.EOS | Gst.MessageType.ERROR
+                    )
+                    if msg:
+                        if msg.type == Gst.MessageType.ERROR:
+                            err, debug = msg.parse_error()
+                            self.logger.error(f"Error during EOS wait: {err}, {debug}")
+                        break
+
+                self.logger.info("Shutting down pipeline...")
+                pipeline.set_state(Gst.State.NULL)

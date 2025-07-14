@@ -1,5 +1,5 @@
 # Core dependencies
-zenoh
+eclipse-zenoh
 
 # Rich terminal UI library
 rich

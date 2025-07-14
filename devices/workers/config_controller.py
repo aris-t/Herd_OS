@@ -21,6 +21,7 @@ def create_config_api(device, build_path: Path):
         enabled: Optional[bool]
         camera_endpoint: Optional[str]
 
+    # Informational Endpoints
     @app.get("/status")
     def get_status():
         device_info = {
@@ -55,18 +56,30 @@ def create_config_api(device, build_path: Path):
             return JSONResponse(content=logs)
         except FileNotFoundError:
             raise HTTPException(status_code=404, detail="Log file not found.")
+        
+    @app.get("/files")
+    def get_files():
+        files = []
+        base_dir = Path("./trials")
+        for file in base_dir.glob("*.mkv"):
+            files.append({"name": file.name, "size": file.stat().st_size})
+        return {"files": files}
 
+    # Control Endpoints
     @app.post("/restart")
     def restart():
         device.logger.info("Restart requested.")
         return {"message": "Device restarting..."}
 
+    # Config Update Endpoints
     @app.post("/rename")
     def rename(cfg: ConfigUpdate):
         device.logger.info(f"Received payload: {cfg.dict()}")
         device.logger.info(f"Renaming to {cfg.name}")
         return {"message": "Device renaming..."}
     
+
+    # Trial Control Endpoints
     @app.post("/start_trial")
     def start_trial(cfg: ConfigUpdate):
         device.logger.info(f"Trial starting with config: {cfg}")
