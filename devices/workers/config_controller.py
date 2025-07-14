@@ -75,7 +75,7 @@ def create_config_api(device, build_path: Path):
     @app.post("/rename")
     def rename(cfg: ConfigUpdate):
         device.logger.info(f"Received payload: {cfg.model_dump()}")
-        device.logger.info(f"Renaming to {cfg.name}")
+        device.name = cfg.name
         return {"message": "Device renaming..."}
     
 
