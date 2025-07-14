@@ -45,8 +45,18 @@ def has_updates():
 
 def pull_and_restart():
     logger.info("🔄 New version detected. Pulling updates...")
-    run_cmd(["git", "pull", "origin", BRANCH])
-    logger.info("✅ Pulled latest code. Restarting...")
+
+    try:
+        if has_local_changes():
+            logger.warning("📦 Local changes detected. Stashing before update...")
+            run_cmd(["git", "stash", "push", "-m", "autostash by updater"])
+
+        run_cmd(["git", "pull", "origin", BRANCH])
+        logger.info("✅ Pulled latest code. Restarting...")
+    except Exception as e:
+        logger.error(f"❌ Update failed: {e}")
+        sys.exit(1)
+
     python = sys.executable
     os.execv(python, [python] + sys.argv)
 
@@ -69,6 +79,11 @@ def get_version():
     except Exception as e:
         logger.warning(f"Could not determine version: {e}")
         return "unknown"
+
+def has_local_changes():
+    status = run_cmd(["git", "status", "--porcelain"])
+    return bool(status.strip())
+
 
 # -------------------------
 # Main logic
