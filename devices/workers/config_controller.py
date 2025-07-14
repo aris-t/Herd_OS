@@ -16,10 +16,10 @@ def create_config_api(device, build_path: Path):
     app = FastAPI(title="Device Config API")
 
     class ConfigUpdate(BaseModel):
-        name: str
-        stream_fps: Optional[int]
-        enabled: Optional[bool]
-        camera_endpoint: Optional[str]
+        name: Optional[str] = None
+        stream_fps: Optional[int] = None
+        enabled: Optional[bool] = None
+        camera_endpoint: Optional[str] = None
 
     # Informational Endpoints
     @app.get("/status")
@@ -74,7 +74,7 @@ def create_config_api(device, build_path: Path):
     # Config Update Endpoints
     @app.post("/rename")
     def rename(cfg: ConfigUpdate):
-        device.logger.info(f"Received payload: {cfg.dict()}")
+        device.logger.info(f"Received payload: {cfg.model_dump()}")
         device.logger.info(f"Renaming to {cfg.name}")
         return {"message": "Device renaming..."}
     

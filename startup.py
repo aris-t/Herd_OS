@@ -89,7 +89,7 @@ def has_local_changes():
 # Main logic
 # -------------------------
 def main_loop():
-    logger.info("\n\n 🐑 Starting Herd OS...")
+    logger.info("\n\n🐑 Starting Herd OS...")
     logger.info(f"Version {get_version()} | Branch: {BRANCH} \n")
 
     retries = 0
