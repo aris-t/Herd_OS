@@ -5,7 +5,7 @@ import gi
 gi.require_version('Gst', '1.0')
 gi.require_version('GLib', '2.0')
 gi.require_version('GstRtspServer', '1.0')
-from gi.repository import Gst, GObject, GLib
+from gi.repository import Gst, GObject, GLib, GstRtspServer
 
 import zenoh
 from .worker import Worker
@@ -38,25 +38,41 @@ class Camera_Controller(Worker):
         os.makedirs(trials_dir, exist_ok=True)
         output_file = os.path.join(trials_dir, f"output_{time.time()}.mkv")
 
-        # Build pipeline
+        # Choose source
         if self.DEBUG:
             source = "videotestsrc pattern=ball"
         else:
             source = "v4l2src"
 
-        pipeline_str = (
-            f"{source} ! videoconvert ! tee name=t "
-            # Branch 1: RTSP stream
-            "t. ! queue ! x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast ! "
-            "rtph264pay config-interval=1 pt=96 name=pay0 "
-            # Branch 2: Local file recording
-            f"t. ! queue ! x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast ! h264parse ! matroskamux ! filesink location={output_file} async=false sync=false "
-            # Branch 3: Local display
-            "t. ! queue ! videoconvert ! autovideosink sync=false"
+        # This handles RTSP stream only — pay0 is required
+        rtsp_pipeline = (
+            f"{source} ! videoconvert ! x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast ! "
+            "rtph264pay name=pay0 pt=96"
+        )
+
+        # RTSP Setup
+        factory = GstRtspServer.RTSPMediaFactory()
+        factory.set_launch(rtsp_pipeline)
+        factory.set_shared(True)
+
+        server = GstRtspServer.RTSPServer()
+        mounts = server.get_mount_points()
+        mounts.add_factory("/stream", factory)
+
+        if not server.attach(None):
+            self.logger.error("Failed to attach RTSP server")
+            return
+
+        # 🔁 Start local record + display pipeline (separate from RTSP)
+        local_pipeline_str = (
+            f"{source} ! tee name=t "
+            "t. ! queue ! videoconvert ! autovideosink sync=false "
+            f"t. ! queue ! videoconvert ! x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast ! "
+            f"h264parse ! matroskamux ! filesink location={output_file} async=false sync=false"
         )
 
         try:
-            self.pipeline = Gst.parse_launch(pipeline_str)
+            self.pipeline = Gst.parse_launch(local_pipeline_str)
             self.pipeline.set_state(Gst.State.PLAYING)
 
             bus = self.pipeline.get_bus()
@@ -81,7 +97,8 @@ class Camera_Controller(Worker):
             self.logger.error(f"Pipeline error: {e}")
             return
 
-        self.logger.info(f"RTSP-style pipeline ready. Recording to: {output_file}")
+        self.logger.info(f"RTSP server running at rtsp://{self.device.ip}:{self.port}/stream")
+        self.logger.info(f"Recording to file: {output_file}")
         GLib.timeout_add(2000, self.broadcast_status, self.pub)
 
         try:
@@ -96,8 +113,6 @@ class Camera_Controller(Worker):
             if self.pipeline:
                 self.logger.info("Sending EOS...")
                 self.pipeline.send_event(Gst.Event.new_eos())
-
-                # Wait for EOS or ERROR
                 while True:
                     msg = bus.timed_pop_filtered(
                         Gst.SECOND * 5,
@@ -105,6 +120,5 @@ class Camera_Controller(Worker):
                     )
                     if msg:
                         break
-
                 self.logger.info("Shutting down pipeline...")
                 self.pipeline.set_state(Gst.State.NULL)
