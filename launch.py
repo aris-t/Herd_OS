@@ -26,8 +26,18 @@ signal.signal(signal.SIGINT, signal_handler)
 # Launch
 # ----------------------------------------
 if __name__ == "__main__":
+    camera = Camera()
     devices = [
-        Camera()
-        ]
+        camera
+    ]
     for device in devices:
         device.start()
+
+    time.sleep(5)
+    camera.start_recorder()
+    time.sleep(20)
+    camera.stop_recorder()
+    time.sleep(5)
+    camera.start_recorder()
+    time.sleep(20)
+    camera.stop_recorder()

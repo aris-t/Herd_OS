@@ -1,7 +1,7 @@
-import multiprocessing
+from multiprocessing import Process, Value
 import time
 
-class Worker(multiprocessing.Process):
+class Worker(Process):
     def __init__(self, device, name):
         super().__init__()
         self.device = device
@@ -9,6 +9,8 @@ class Worker(multiprocessing.Process):
         
         self.name = name
         self.is_stopped = self.device.is_stopped
+
+        self.health = Value("i", 0)  # Health status: 0=OK, 1=Warning, 2=Error
 
     def run(self):
         while not self.is_stopped:

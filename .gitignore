@@ -138,6 +138,7 @@ logs.txt
 
 # production
 /frontend/build
+/myenv
 
 # misc
 .DS_Store

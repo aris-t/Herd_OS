@@ -3,6 +3,8 @@ from datetime import datetime
 
 from .device import Device
 from .workers import Camera_Controller
+from .workers import Camera_Recorder  # Ensure this import is correct based on your file structure
+from .workers import Camera_RTPS  # Ensure this import is correct based on your file structure
 from utils.setup_logger import setup_logger
 
 # # ----------------------------------------
@@ -21,16 +23,43 @@ class Camera(Device):
         self.target_bitrate = 4000
 
         # Control flags
+        self.recorders = []
         self.is_recording = False
 
         self.processes = [
-            Camera_Controller(self, "Camera_Controller", DEBUG=True)
+            Camera_Controller(self, "Camera_Controller", DEBUG=True),
+            Camera_RTPS(self, "Camera_RTPS", DEBUG=True)
         ]
 
     def __setup__(self):
         self.logger.info("Setting up device...")
 
     # Device Specific Methods
+    def start_recorder(self):
+        if not self.is_recording:
+            self.is_recording = True
+            self.logger.info("Starting recorder...")
+
+            recorder = Camera_Recorder(self, "Camera_Recorder", DEBUG=True)
+            self.processes.append(recorder)
+            self.recorders.append(recorder)
+            recorder.start()
+        else:
+            self.logger.warning("Recorder is already running.")
+
+    def stop_recorder(self):
+        if self.is_recording and self.recorders:
+            self.is_recording = False
+            self.logger.info("Stopping recorder...")
+
+            for recorder in self.recorders:
+                self.logger.info("Stopping recorder process...")
+                recorder.stop()
+                recorder.join(timeout=5)
+        else:
+            self.logger.warning("No recorder is running.")
+
+    # Use Specific Methods for Camera Device
     def start_trial(self, config=None):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         trial_dir = os.path.join("trials", f"trial_{timestamp}")

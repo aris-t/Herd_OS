@@ -20,11 +20,13 @@ class Camera_Controller(Worker):
         self.DEBUG = DEBUG
         self.device = device
         self.port = 8554
+
         self.pipeline = None
         self.main_loop = None
         self.zenoh_client = None
         self.pub = None
         self.rtsp_server = None
+        
         self.main_loop_thread = None
         self.output_file = None
         self._setup_lock = threading.Lock()
@@ -206,8 +208,9 @@ class Camera_Controller(Worker):
             
             self.logger.info("Cleanup completed")
 
+
+
     def run(self):
-        """Main run method - now properly structured"""
         try:
             with self._setup_lock:
                 # Setup all components
