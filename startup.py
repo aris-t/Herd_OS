@@ -5,6 +5,10 @@ import time
 import logging
 from datetime import datetime
 import ntplib
+from rich.console import Console
+from rich.logging import RichHandler
+from rich.text import Text
+import hashlib
 
 BRANCH = "main"
 MAX_RETRIES = 5
@@ -12,21 +16,64 @@ RETRY_DELAY = 60  # seconds
 LOG_FILE = "logs.txt"
 
 # -------------------------
-# Logging setup
+# Rich Logging setup
 # -------------------------
+console = Console()
+
+# Script identifier for common header
+SCRIPT_NAME = "STARTUP"
+
+def pastel_color_from_name(name):
+    # Hash the name to get a deterministic value
+    h = hashlib.md5(name.encode()).hexdigest()
+    # Use first 6 hex digits for RGB
+    r = int(h[0:2], 16)
+    g = int(h[2:4], 16)
+    b = int(h[4:6], 16)
+    # Blend with white for pastel effect
+    r = (r + 255) // 2
+    g = (g + 255) // 2
+    b = (b + 255) // 2
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+SCRIPT_COLOR = pastel_color_from_name(SCRIPT_NAME)
+
+# Setup rich logging with both file and console handlers
 logger = logging.getLogger("AutoUpdater")
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-
+# File handler with standard formatting for log file
+file_formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
 file_handler = logging.FileHandler(LOG_FILE)
-file_handler.setFormatter(formatter)
+file_handler.setFormatter(file_formatter)
 
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(formatter)
+# Rich console handler with script indicator
+class RichHandlerWithScript(RichHandler):
+    def format(self, record):
+        # Get the original message without Rich's default formatting
+        message = record.getMessage()
+        
+        # Format timestamp as MM/DD/YY HH:MM:SS
+        timestamp = datetime.fromtimestamp(record.created).strftime("%m/%d/%y %H:%M:%S")
+        
+        # Format: [timestamp] SCRIPT_NAME LEVEL    message
+        level_name = record.levelname
+        formatted = f"[{timestamp}] [bold {SCRIPT_COLOR}]{SCRIPT_NAME}[/bold {SCRIPT_COLOR}] {level_name:<8} {message}"
+        
+        return formatted
+
+rich_handler = RichHandlerWithScript(
+    console=console,
+    show_time=False,  # We're handling time ourselves
+    show_level=False,  # We're handling level ourselves
+    show_path=False,
+    rich_tracebacks=True,
+    markup=True
+)
+rich_handler.setFormatter(logging.Formatter("%(message)s"))
 
 logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+logger.addHandler(rich_handler)
 
 # -------------------------
 # Functions
@@ -44,33 +91,40 @@ def has_updates():
     return local != remote
 
 def pull_and_restart():
-    logger.info("🔄 New version detected. Pulling updates...")
+    logger.info("[bold yellow]🔄 New version detected. Pulling updates...[/bold yellow]")
 
     try:
         if has_local_changes():
-            logger.warning("📦 Local changes detected. Stashing before update...")
+            logger.warning("[yellow]📦 Local changes detected. Stashing before update...[/yellow]")
             run_cmd(["git", "stash", "push", "-m", "autostash by updater"])
 
         run_cmd(["git", "pull", "origin", BRANCH])
-        logger.info("✅ Pulled latest code. Restarting...")
+        logger.info("[bold green]✅ Pulled latest code. Restarting...[/bold green]")
     except Exception as e:
-        logger.error(f"❌ Update failed: {e}")
+        logger.error(f"[bold red]❌ Update failed: {e}[/bold red]")
         sys.exit(1)
 
     python = sys.executable
     os.execv(python, [python] + sys.argv)
 
 def self_check():
-    logger.info("🔍 Running self check... OK")
+    logger.info("[bold blue]🔍 Running self check...[/bold blue] [green]OK[/green]")
 
 def sync_time_from_nist():
     try:
         client = ntplib.NTPClient()
+        before = time.time()
         response = client.request('time.nist.gov', version=3)
-        t = datetime.fromtimestamp(response.tx_time)
-        logger.info(f"NIST Time: {t.isoformat()}")
+        nist_time = response.tx_time
+        after = time.time()
+        delta_before = nist_time - before
+        delta_after = nist_time - after
+        t = datetime.fromtimestamp(nist_time)
+        logger.info(f"[cyan]NIST Time: {t.isoformat()}[/cyan]")
+        logger.info(f"[magenta]Time delta before sync: {delta_before:.3f} seconds[/magenta]")
+        logger.info(f"[magenta]Time delta after sync: {delta_after:.3f} seconds[/magenta]")
     except Exception as e:
-        logger.warning(f"NIST time sync failed: {e}")
+        logger.warning(f"[yellow]NIST time sync failed: {e}[/yellow]")
 
 def get_version():
     try:
@@ -84,13 +138,44 @@ def has_local_changes():
     status = run_cmd(["git", "status", "--porcelain"])
     return bool(status.strip())
 
+def list_v4l2_devices():
+    devices = []
+    video_dir = "/dev"
+    for entry in os.listdir(video_dir):
+        if entry.startswith("video"):
+            device_path = os.path.join(video_dir, entry)
+            devices.append(device_path)
+            camera_infos = []
+            for device in devices:
+                try:
+                    info = run_cmd(["v4l2-ctl", "--device", device, "--all"])
+                    # Parse info: extract key-value pairs (e.g., "Driver Info", "Card type", "Bus info", etc.)
+                    parsed = {}
+                    for line in info.splitlines():
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            parsed[key.strip()] = value.strip()
+                    camera_infos.append({"device": device, "info": parsed})
+                except Exception as e:
+                    camera_infos.append({"device": device, "info": {"error": str(e)}})
+
+            # NCE logging format: one line per device, key=value pairs
+            for cam in camera_infos:
+                device = cam["device"]
+                info = cam["info"]
+                if "error" in info:
+                    logger.info(f"[red]NCE_CAMERA device={device} error={info['error']}[/red]")
+                else:
+                    info_str = " ".join(f"{k.replace(' ', '_').lower()}={v}" for k, v in info.items())
+                    logger.info(f"[green]NCE_CAMERA device={device}[/green] [cyan]{info_str}[/cyan]")
+            return devices
 
 # -------------------------
 # Main logic
 # -------------------------
 def main_loop():
-    logger.info("\n\n🐑 Starting Herd OS...")
-    logger.info(f"Version {get_version()} | Branch: {BRANCH} \n")
+    logger.info("\n\n[bold blue]🐑 Starting Herd OS...[/bold blue]")
+    logger.info(f"[green]Version {get_version()}[/green] | [cyan]Branch: {BRANCH}[/cyan] \n")
 
     retries = 0
     while retries < MAX_RETRIES:
@@ -100,10 +185,10 @@ def main_loop():
             break  # No updates, continue
         except Exception as e:
             retries += 1
-            logger.warning(f"Update check failed ({retries}/{MAX_RETRIES}): {e}")
+            logger.warning(f"[yellow]Update check failed ({retries}/{MAX_RETRIES}): {e}[/yellow]")
             time.sleep(RETRY_DELAY)
     else:
-        logger.error("Maximum retry limit reached. Exiting.")
+        logger.error("[red]Maximum retry limit reached. Exiting.[/red]")
         sys.exit(1)
 
     # Perform self-check and time sync after update check
@@ -112,13 +197,16 @@ def main_loop():
     # Sync time from NIST / GPS
     sync_time_from_nist()
 
+    # List available v4l2 devices
+    v4l2_devices = list_v4l2_devices()
+
     # LAUNCH:
-    logger.info("✅ Setup Passed. Starting main application...")
+    logger.info("[bold green]✅ Setup Passed. Starting main application...[/bold green]")
 
-    python = sys.executable
-    os.execv(python, [python, "launch.py"])
+    # python = sys.executable
+    # os.execv(python, [python, "launch.py"])
 
-    logger.info("Startup completed successfully.")
+    logger.info("[bold green]Startup completed successfully.[/bold green]")
 
 if __name__ == "__main__":
     main_loop()

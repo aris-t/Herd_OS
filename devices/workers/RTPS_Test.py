@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 from gi.repository import Gst, GstRtspServer, GLib
 Gst.init(None)
 
@@ -38,6 +39,6 @@ class Camera_RTPS(Worker):
     def stop(self):
         self.is_stopped.value = True
 
-
+# RX gst-launch-1.0 -v rtspsrc location=rtsp://192.168.1.50:8554/stream latency=50 protocols=tcp ! rtph264depay ! avdec_h264 ! videoconvert ! autovideosink
 
         
