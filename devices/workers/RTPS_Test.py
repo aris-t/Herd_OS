@@ -11,7 +11,7 @@ class TestFactory(GstRtspServer.RTSPMediaFactory):
             "shmsrc socket-path=/tmp/testshm do-timestamp=true is-live=true ! "
             "video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! "
             "videoconvert ! "
-            "x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast ! "
+            "x264enc tune=zerolatency bitrate=10000 speed-preset=ultrafast ! "
             "rtph264pay name=pay0 pt=96"
         ))
         self.set_shared(True)
