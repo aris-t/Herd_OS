@@ -123,6 +123,10 @@ def sync_time_from_nist():
         logger.info(f"[cyan]NIST Time: {t.isoformat()}[/cyan]")
         logger.info(f"[magenta]Time delta before sync: {delta_before:.3f} seconds[/magenta]")
         logger.info(f"[magenta]Time delta after sync: {delta_after:.3f} seconds[/magenta]")
+    
+        if delta_before > 0.1:
+            logger.warning("You may want to add that HW update for time sync to your startup script.. tsk tsk tsk")
+    
     except Exception as e:
         logger.warning(f"[yellow]NIST time sync failed: {e}[/yellow]")
 
