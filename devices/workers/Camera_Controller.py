@@ -21,49 +21,34 @@ class Camera_Controller(Worker):
 
     def startup(self):
             self.logger.info(f"[{self.device.device_id}][{self.name}] Starting up...")
-            # Check for available video devices (e.g., /dev/video*)
-            video_devices = glob.glob('/dev/video*')
-            device_info = []
 
-            for dev in video_devices:
-                info = {"device": dev, "type": "Unknown", "make": "Unknown"}
-                try:
-                    # Try to get device info using v4l2-ctl if available
-                    result = subprocess.run(
-                        ["v4l2-ctl", "--device", dev, "--all"],
-                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-                    )
-                    if result.returncode == 0:
-                        output = result.stdout
-                        if "usb" in output.lower():
-                            info["type"] = "USB Camera"
-                        elif "platform" in output.lower():
-                            info["type"] = "Webcam"
-                        # Try to extract card/make info
-                        for line in output.splitlines():
-                            if "Card type" in line or "card type" in line:
-                                info["make"] = line.split(":", 1)[-1].strip()
-                            elif "Driver name" in line and info["make"] == "Unknown":
-                                info["make"] = line.split(":", 1)[-1].strip()
-                    else:
-                        info["type"] = "Unknown"
-                except Exception as e:
-                    self.logger.warning(f"Could not get info for {dev}: {e}")
-                device_info.append(info)
+            # TODO fingerpint the camera and hardware
 
-            self.logger.info(f"Detected video devices: {device_info}")
-            return device_info
-
-    def gstreamer_factory(self, width=640, height=480, framerate=30, format="I420", show_preview=True):
+    def gstreamer_factory(self, mode, width=640, height=480, framerate=30, format="I420", shm_size=10000000, show_preview=False):
         # Build pipeline elements as a list for clarity and flexibility
-        elements = [
-            "videotestsrc is-live=true pattern=ball",
-            f"video/x-raw, width={width}, height={height}, framerate={framerate}/1",
-            "tee name=t",
-            "t. ! queue leaky=downstream max-size-buffers=2",
-            f"videoconvert ! video/x-raw, format={format}",
-            f"shmsink socket-path={self.shm_path} shm-size=10000000 sync=false wait-for-connection=false"
-        ]
+        # Debug Pipeline
+        if mode == "debug":
+            elements = [
+                "videotestsrc is-live=true pattern=ball",
+                f"video/x-raw, width={width}, height={height}, framerate={framerate}/1",
+                "tee name=t",
+                "t. ! queue leaky=downstream max-size-buffers=2",
+                f"videoconvert ! video/x-raw, format={format}",
+                f"shmsink socket-path={self.shm_path} shm-size={shm_size} sync=false wait-for-connection=false"
+            ]
+
+        # Pi 5 Cam 3 Pipeline
+        elif mode == "pi5_cam3":
+            elements = [
+                "libcamerasrc",
+                f"video/x-raw, width={width}, height={height}, framerate={framerate}/1",
+                "tee name=t",
+                "t. ! queue leaky=downstream max-size-buffers=2",
+                f"videoconvert ! video/x-raw, format={format}",
+                f"shmsink socket-path={self.shm_path} shm-size={shm_size} sync=false wait-for-connection=false"
+            ]
+
+        # Preview 
         if show_preview:
             elements.append("t. ! queue ! autovideosink")
         pipeline_str = " ! ".join(elements)

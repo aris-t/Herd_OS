@@ -14,6 +14,10 @@ BRANCH = "main"
 MAX_RETRIES = 5
 RETRY_DELAY = 60  # seconds
 LOG_FILE = "logs.txt"
+VENV = "myvenv"
+
+def in_venv():
+    return sys.prefix != sys.base_prefix
 
 # -------------------------
 # Rich Logging setup
@@ -192,6 +196,11 @@ def list_v4l2_devices():
                     info_str = " ".join(f"{k.replace(' ', '_').lower()}={v}" for k, v in info.items())
                     logger.info(f"[green]NCE_CAMERA device={device}[/green] [cyan]{info_str}[/cyan]")
             return devices
+
+def fallback_to_safe_mode():
+    logger.warning("[yellow]Falling back to safe mode...[/yellow]")
+    python = sys.executable
+    logger.error("Safe mode not implemented yet. Exiting.")
 
 # -------------------------
 # Main logic
