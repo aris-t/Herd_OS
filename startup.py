@@ -85,11 +85,12 @@ def run_cmd(cmd):
     return result.stdout.strip()
 
 def has_updates():
+    need_update = False
     run_cmd(["git", "fetch"])
     local = run_cmd(["git", "rev-parse", BRANCH])
     remote = run_cmd(["git", "rev-parse", f"origin/{BRANCH}"])
     if local != remote:
-        return True
+        need_update = True
 
     # Check submodules for updates
     # Fetch submodule remotes
@@ -98,8 +99,8 @@ def has_updates():
     sub_status = run_cmd(["git", "submodule", "status", "--recursive"])
     for line in sub_status.splitlines():
         if line.startswith('+') or line.startswith('-'):
-            return True
-    return False
+            need_update = True
+    return need_update
 
 def pull_and_restart():
     logger.info("[bold yellow]🔄 New version detected. Pulling updates (including submodules)...[/bold yellow]")
