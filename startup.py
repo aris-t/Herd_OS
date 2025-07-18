@@ -91,7 +91,7 @@ def has_updates():
     return local != remote
 
 def pull_and_restart():
-    logger.info("[bold yellow]🔄 New version detected. Pulling updates...[/bold yellow]")
+    logger.info("[bold yellow]🔄 New version detected. Pulling updates (including submodules)...[/bold yellow]")
 
     try:
         if has_local_changes():
@@ -99,9 +99,16 @@ def pull_and_restart():
             run_cmd(["git", "stash", "push", "-m", "autostash by updater"])
 
         run_cmd(["git", "pull", "origin", BRANCH])
-        logger.info("[bold green]✅ Pulled latest code. Restarting...[/bold green]")
+        logger.info("[bold green]✅ Pulled latest code.[/bold green]")
+
+        # Update submodules
+        logger.info("[bold yellow]🔄 Updating submodules...[/bold yellow]")
+        run_cmd(["git", "submodule", "update", "--init", "--recursive"])
+        logger.info("[bold green]✅ Submodules updated.[/bold green]")
+
+        logger.info("[bold green]Restarting...[/bold green]")
     except Exception as e:
-        logger.error(f"[bold red]❌ Update failed: {e}[/bold red]")
+        logger.error(f"[bold red]❌ Update or submodule update failed: {e}[/bold red]")
         sys.exit(1)
 
     python = sys.executable
@@ -202,7 +209,7 @@ def main_loop():
     sync_time_from_nist()
 
     # List available v4l2 devices
-    v4l2_devices = list_v4l2_devices()
+    list_v4l2_devices()
 
     # LAUNCH:
     logger.info("[bold green]✅ Setup Passed. Starting main application...[/bold green]")

@@ -1,9 +1,9 @@
 from .worker import Worker
-from .SHM_Source import Camera_Controller
-from .SHM_Record import Camera_Recorder
-from .RTPS_Test import Camera_RTPS
-from .iff import IFF
-from .config_controller import Config_Controller
+from .Camera_Controller import Camera_Controller
+from .Camera_Recorder import Camera_Recorder
+from .Camera_RTPS import Camera_RTPS
+from .IFF import IFF
+from .Config_Controller import Config_Controller
 
 __all__ = [
     'Worker',
