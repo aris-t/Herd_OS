@@ -94,7 +94,7 @@ def has_updates():
 
     # Check submodules for updates
     # Fetch submodule remotes
-    run_cmd(["git", "submodule", "update", "--remote", "--init", "--recursive", "--dry-run"])
+    run_cmd(["git", "submodule", "update", "--remote", "--init", "--recursive"])
     # Check if any submodule is not up to date
     sub_status = run_cmd(["git", "submodule", "status", "--recursive"])
     for line in sub_status.splitlines():
