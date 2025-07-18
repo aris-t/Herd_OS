@@ -226,8 +226,8 @@ def main_loop():
     # LAUNCH:
     logger.info("[bold green]✅ Setup Passed. Starting main application...[/bold green]")
 
-    # python = sys.executable
-    # os.execv(python, [python, "launch.py"])
+    python = sys.executable
+    os.execv(python, [python, "launch.py"])
 
     logger.info("[bold green]Startup completed successfully.[/bold green]")
 
