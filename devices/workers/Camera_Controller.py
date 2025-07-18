@@ -58,6 +58,7 @@ class Camera_Controller(Worker):
 
         self.startup()
         pipeline_str = self.gstreamer_factory()
+        self.logger.info(f"[{self.device.device_id}][{self.name}] GStreamer Pipeline: {pipeline_str}")
 
         if os.path.exists(self.shm_path):
             if self.OVERWRITE_SHM:
