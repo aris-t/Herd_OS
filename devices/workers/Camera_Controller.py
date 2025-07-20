@@ -45,7 +45,8 @@ class Camera_Controller(Worker):
                 "video/x-raw,width=640,height=480,framerate=30/1,format=I420",
                 "tee name=t",
                 "t. ! queue leaky=downstream max-size-buffers=2",
-                "shmsink socket-path=/tmp/video.shm shm-size=100000000 sync=false wait-for-connection=false"
+                "shmsink socket-path=/tmp/video.shm shm-size=100000000 sync=false wait-for-connection=false",
+                "t. ! fakesink"
             ]
 
         # Preview 
