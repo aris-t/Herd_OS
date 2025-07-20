@@ -41,11 +41,11 @@ class Camera_Controller(Worker):
         elif mode == "pi5_cam3":
             elements = [
                 "libcamerasrc",
-                f"video/x-raw, width={width}, height={height}, framerate={framerate}/1",
+                "videoconvert",
+                "video/x-raw,width=640,height=480,framerate=30/1,format=I420",
                 "tee name=t",
                 "t. ! queue leaky=downstream max-size-buffers=2",
-                f"videoconvert ! video/x-raw, format={format}",
-                f"shmsink socket-path={self.shm_path} shm-size={shm_size} sync=false wait-for-connection=false"
+                "shmsink socket-path=/tmp/video.shm shm-size=100000000 sync=false wait-for-connection=false"
             ]
 
         # Preview 

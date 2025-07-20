@@ -5,6 +5,7 @@ sudo apt-get install git
 sudo apt install libcap-dev
 sudo apt install libgirepository1.0-dev libcairo2-dev cmake
 sudo apt install gir1.2-gst-rtsp-server-1.0
+sudo apt install nodejs npm -y
 
 
 git clone git@github.com:aris-t/Herd_OS.git
@@ -35,6 +36,11 @@ sed -i 's/include-system-site-packages = .*/include-system-site-packages = true/
 
 pip install picamera2
 pip install -r requirements.txt
+
+cd frontend
+npm install
+npm run build
+cd ..
 
 
 # pip install pygobject
