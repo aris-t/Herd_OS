@@ -43,9 +43,16 @@ class Camera_Controller(Worker):
 
         # Pi 5 Cam 3 Pipeline
         elif mode == "pi5_cam3":
+            # TODO Make dynamic config work
+            valid_cfgs = [
+                    [1536, 864, [120.13]],
+                    [2304, 1296, [56.03, 30.0]],  # 30.0 for HDR (typical)
+                    [4608, 2592, [14.35]]
+                ]
+            
             pipeline_str = (
             f"libcamerasrc af-mode=continuous ! videoconvert ! "
-            "video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! "
+            "video/x-raw,width=2304,height=1296,framerate=30/1,format=I420 ! "
             "tee name=t "
             "t. ! queue leaky=downstream max-size-buffers=2 ! "
             f"shmsink socket-path={self.shm_path} shm-size=100000000 sync=false wait-for-connection=false "

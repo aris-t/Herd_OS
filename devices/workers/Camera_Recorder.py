@@ -26,7 +26,7 @@ class Camera_Recorder(Worker):
 
         pipeline_str = f"""
         shmsrc socket-path={socket_path} do-timestamp=true is-live=true !
-        video/x-raw,format=I420,width=640,height=480,framerate=30/1 !
+        video/x-raw,format=I420,width=2304,height=1296,framerate=30/1 !
         tee name=t
 
         t. ! queue ! videoconvert ! fakesink sync=false async=false

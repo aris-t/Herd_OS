@@ -15,7 +15,7 @@ class TestFactory(GstRtspServer.RTSPMediaFactory):
         super().__init__()
         self.set_launch((
             "shmsrc socket-path=/tmp/testshm do-timestamp=true is-live=true ! "
-            "video/x-raw,format=I420,width=640,height=480,framerate=30/1 ! "
+            "video/x-raw,format=I420,width=2304,height=1296,framerate=30/1 ! "
             "videoconvert ! "
             "x264enc tune=zerolatency bitrate=10000 speed-preset=ultrafast ! "
             "rtph264pay name=pay0 pt=96"
