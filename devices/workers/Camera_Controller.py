@@ -44,7 +44,7 @@ class Camera_Controller(Worker):
         # Pi 5 Cam 3 Pipeline
         elif mode == "pi5_cam3":
             pipeline_str = (
-            f"libcamerasrc af-mode=continuous ae-enable=true awb-enable=true ! videoconvert ! "
+            f"libcamerasrc af-mode=continuous ! videoconvert ! "
             "video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! "
             "tee name=t "
             "t. ! queue leaky=downstream max-size-buffers=2 ! "
