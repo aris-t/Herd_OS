@@ -52,6 +52,7 @@ class Camera_Controller(Worker):
         if show_preview:
             elements.append("t. ! queue ! autovideosink")
         pipeline_str = " ! ".join(elements)
+        self.logger.info(f"[{self.device.device_id}][{self.name}] GStreamer Pipeline: {pipeline_str}")
         return pipeline_str
 
     def run(self):
