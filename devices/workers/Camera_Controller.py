@@ -36,38 +36,27 @@ class Camera_Controller(Worker):
                 f"videoconvert ! video/x-raw, format={format}",
                 f"shmsink socket-path={self.shm_path} shm-size={shm_size} sync=false wait-for-connection=false"
             ]
+            # Preview 
+            if show_preview:
+                elements.append("t. ! queue ! autovideosink")
+            pipeline_str = " ! ".join(elements)
 
         # Pi 5 Cam 3 Pipeline
         elif mode == "pi5_cam3":
-            elements = [
-                "libcamerasrc",
-                "videoconvert",
-                "video/x-raw,width=640,height=480,framerate=30/1,format=I420",
-                "tee name=t",
-                "t. ! queue leaky=downstream max-size-buffers=2",
-                "shmsink socket-path=/tmp/video.shm shm-size=100000000 sync=false wait-for-connection=false",
-                "t. ! fakesink"
-            ]
+            pipeline_str = (
+            f"libcamerasrc af-mode=continuous ae-enable=true awb-enable=true ! videoconvert ! "
+            "video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! "
+            "tee name=t "
+            "t. ! queue leaky=downstream max-size-buffers=2 ! "
+            f"shmsink socket-path={self.shm_path} shm-size=100000000 sync=false wait-for-connection=false "
+            "t. ! fakesink"
+            )
 
-        # Preview 
-        if show_preview:
-            elements.append("t. ! queue ! autovideosink")
-        pipeline_str = " ! ".join(elements)
-        self.logger.info(f"[{self.device.device_id}][{self.name}] GStreamer Pipeline: {pipeline_str}")
         return pipeline_str
 
     def run(self):
-        pipeline_str = (
-        f"libcamerasrc ! videoconvert ! "
-        "video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! "
-        "tee name=t "
-        "t. ! queue leaky=downstream max-size-buffers=2 ! "
-        f"shmsink socket-path={self.shm_path} shm-size=100000000 sync=false wait-for-connection=false "
-        "t. ! fakesink"
-        )
-
         self.startup()
-        pipeline_str = pipeline_str
+        pipeline_str = self.gstreamer_factory(mode="pi5_cam3")
         self.logger.info(f"[{self.device.device_id}][{self.name}] GStreamer Pipeline: {pipeline_str}")
 
         if os.path.exists(self.shm_path):
