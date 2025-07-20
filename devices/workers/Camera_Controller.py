@@ -57,9 +57,10 @@ class Camera_Controller(Worker):
         return pipeline_str
 
     def run(self):
+        piper = "libcamerasrc ! videoconvert ! video/x-raw,width=640,height=480,framerate=30/1,format=I420 ! tee name=t ! t. ! queue leaky=downstream max-size-buffers=2 ! shmsink socket-path=/tmp/video.shm shm-size=100000000 sync=false wait-for-connection=false ! t. ! fakesink"
 
         self.startup()
-        pipeline_str = self.gstreamer_factory("pi5_cam3")
+        pipeline_str = piper #self.gstreamer_factory("pi5_cam3")
         self.logger.info(f"[{self.device.device_id}][{self.name}] GStreamer Pipeline: {pipeline_str}")
 
         if os.path.exists(self.shm_path):
