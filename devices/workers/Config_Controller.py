@@ -127,7 +127,7 @@ sample_files = [
 # ----------------------------------------
 # FastAPI Config Server
 # ----------------------------------------
-def create_config_api(self, device, build_path: Path):
+def create_config_api(device, build_path: Path):
     app = FastAPI(
         title="Device Configuration API",
         description="API for device configuration and monitoring",
