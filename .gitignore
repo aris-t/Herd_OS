@@ -127,6 +127,7 @@ cypress/screenshots/
 
 # Functional
 logs.txt
+*.txt
 
 # dependencies
 /node_modules

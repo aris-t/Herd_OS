@@ -4,10 +4,14 @@ import websockets
 
 clients = set()
 
-async def handler(ws, _):
+async def handler(ws):
+    print(f"🔌 Client connected from {ws.remote_address}")
+    print("HIT")
+    print(ws)
     clients.add(ws)
     try:
         async for msg in ws:
+            print(msg)
             for c in clients:
                 if c != ws:
                     await c.send(msg)
