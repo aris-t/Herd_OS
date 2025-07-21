@@ -67,6 +67,7 @@ class WebRTCStreamer:
     async def consume_signaling(self, ws):
         self.ws = ws
         async for msg in ws:
+            print(f"📩 Received message: {msg}")
             data = json.loads(msg)
             if "answer" in data:
                 sdp = data["answer"]["sdp"]
@@ -89,7 +90,7 @@ def main():
     streamer.start_pipeline()
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(streamer.start_signaling("ws://localhost:8443/ws"))
+    loop.run_until_complete(streamer.start_signaling("ws://0.0.0.0:8443/ws"))
     loop.run_forever()
 
 
