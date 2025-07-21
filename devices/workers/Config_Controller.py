@@ -151,6 +151,7 @@ def create_config_api(device, build_path: Path):
 
 
     ### Device Status Info and Health Endpoints
+    print("\n\n build status \n\n")
     @app.get("/status", response_model=DeviceStatus)
     async def get_status():
         """Get device status"""
