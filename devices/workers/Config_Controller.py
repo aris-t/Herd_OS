@@ -35,7 +35,6 @@ class DeviceStatus(BaseModel):
     ip: str
     stream_fps: int
     uptime_sec: int
-    enabled: bool
     camera_endpoint: Optional[str] = None
     build_path: Optional[str] = None
 
@@ -73,7 +72,6 @@ device_config = {
     "device_id": "DEV001",
     "name": "Camera Device 01",
     "stream_fps": 30,
-    "enabled": True,
     "camera_endpoint": "http://192.168.1.100:8080/stream",
     "start_time": time.time()
 }
@@ -167,7 +165,6 @@ def create_config_api(device, build_path: Path):
                 ip=device.ip,
                 stream_fps=device.target_framerate,
                 uptime_sec=round(time.time() - device.boot_time),
-                enabled=device.enabled,
                 camera_endpoint=device.camera_endpoint,
                 build_path=str(build_path),
             )
