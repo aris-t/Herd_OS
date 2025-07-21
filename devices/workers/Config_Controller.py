@@ -146,18 +146,12 @@ def create_config_api(device, build_path: Path):
         allow_headers=["*"],
     )
 
+    ### Static Files for React Frontend
+    app.mount("/static", StaticFiles(directory=build_path / "static"), name="static")
+
     @app.get("/")
     async def serve_root():
         return FileResponse(build_path / "index.html")
-
-    # Fallback for client-side routes like /about, /settings
-    @app.get("/{full_path:path}")
-    async def serve_react_router(full_path: str):
-        full_file = build_path / full_path
-        if full_file.exists():
-            return FileResponse(full_file)
-        return FileResponse(build_path / "index.html")
-
 
     ### Device Status Info and Health Endpoints
     print("\n\n build status \n\n")
