@@ -138,16 +138,23 @@ class Device:
         if self.DEBUG:
             self.logger.info(f"Name change event: {old_name} -> {new_name}")
 
+    # Command Lifecycle
     @property
     def command_handlers(self):
         commands = getattr(self, "commands", {})
         if not isinstance(commands, dict):
             raise TypeError("Child must define `command_handlers` as a dict.")
-        return self._commands + commands
+        combined = self._commands.copy()
+        for k, v in commands.items():
+            if k not in combined:
+                combined[k] = v
+            else:
+                self.logger.warning(f"Duplicate command found: {k} cannot ovveride")
+        return combined
 
     def _handle_command(self, command, property=None):
         handler = self.command_handlers.get(command)
         if handler:
-            handler(property)  # Pass the property to the handler if it exists
+            return handler(property)  # Pass the property to the handler if it exists
         else:
             self.logger.warning(f"No handler found for command: {command}")
