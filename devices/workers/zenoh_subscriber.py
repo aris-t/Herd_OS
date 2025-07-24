@@ -13,7 +13,7 @@ class Zenoh_Subscriber():
 
         self.subscribers = []
         for topic in topics:
-            sub = session.declare_subscriber(topic, listener)
+            sub = session.declare_subscriber(topic, self.listener)
             self.subscribers.append(sub)
 
     def stop(self):

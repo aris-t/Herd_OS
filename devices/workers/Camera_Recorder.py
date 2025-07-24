@@ -5,19 +5,22 @@ import os
 Gst.init(None)
 
 from .worker import Worker
+from .Upload_Service import upload_file_in_chunks
 import os
 
 class Camera_Recorder(Worker):
-    def __init__(self, device, name, DEBUG=False):
+    def __init__(self, device, name, UPLOAD_ON_FINISH=True, DEBUG=False):
         super().__init__(device, name)
         self.DEBUG = DEBUG
         self.device = device
         self.loop = GLib.MainLoop()
-        self.pipeline = None
+        self.UPLOAD_ON_FINISH = UPLOAD_ON_FINISH
 
     def run(self):
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filename = f"output_{timestamp}.mkv"
+        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trials")
+        os.makedirs(output_dir, exist_ok=True)
+        self.filename = os.path.join(output_dir, f"output_{timestamp}.mkv")
 
         socket_path = "/tmp/testshm"
         if not os.path.exists(socket_path):
@@ -34,7 +37,7 @@ class Camera_Recorder(Worker):
         t. ! queue ! videoconvert !
         x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast !
         matroskamux !
-        filesink location={filename} sync=false
+        filesink location={self.filename} sync=false
         """
 
         self.pipeline = Gst.parse_launch(pipeline_str)
@@ -45,7 +48,7 @@ class Camera_Recorder(Worker):
         bus.connect("message", self.on_message)
 
         self.pipeline.set_state(Gst.State.PLAYING)
-        print(f"🎥 Recording to {filename}...")
+        print(f"🎥 Recording to {self.filename}...")
         self.loop.run()
 
     def on_message(self, bus, message):
@@ -65,5 +68,11 @@ class Camera_Recorder(Worker):
             self.pipeline = None
         if self.loop.is_running():
             self.loop.quit()
+        
+        # Upload the recorded file if enabled
+        if self.UPLOAD_ON_FINISH and hasattr(self, 'filename') and os.path.exists(self.filename):
+            print(f"📤 Uploading {self.filename}...")
+            upload_file_in_chunks(self.filename)
+
         self.is_stopped.value = True
         self.terminate()

@@ -128,6 +128,7 @@ cypress/screenshots/
 # Functional
 logs.txt
 *.txt
+*gait_source*
 
 # dependencies
 /node_modules

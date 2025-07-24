@@ -1,0 +1,21 @@
+[Unit]
+Description=Battery Monitor Service
+Documentation=Battery monitoring and shutdown service for UPS
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/aris/Desktop/PRL_SW/Herd_OS
+ExecStart=/usr/bin/python3 /home/aris/Desktop/PRL_SW/Herd_OS/devices/base_agents/battery_monitor.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

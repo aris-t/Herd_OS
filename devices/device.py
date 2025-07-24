@@ -4,7 +4,7 @@ import socket
 from pathlib import Path
 import json
 
-from .workers import IFF, Config_Controller
+from .workers import Health_Monitor, Config_Controller
 from utils.setup_logger import setup_logger
 
 from multiprocessing import Manager, Lock, Value
@@ -34,8 +34,8 @@ class Device:
 
         # Required base processes
         self._processes = [
-            IFF(self, "IFF"),
             Config_Controller(self, "ConfigAPI"),
+            Health_Monitor(self, "HealthMonitor"),
         ]
 
     def __setup__(self):
