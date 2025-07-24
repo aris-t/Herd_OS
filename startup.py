@@ -16,6 +16,9 @@ RETRY_DELAY = 60  # seconds
 LOG_FILE = "logs.txt"
 VENV = "myvenv"
 
+# Read environment variable for debug mode
+DEBUG_MODE = os.environ.get("HERDOS_Boots", "0") == "1"
+
 def in_venv():
     return sys.prefix != sys.base_prefix
 
@@ -118,6 +121,22 @@ def pull_and_restart():
         logger.info("[bold green]✅ Pulled latest code.[/bold green]")
 
         # Update submodules
+        logger.info("[bold yellow]🔄 Checking submodules for updates...[/bold yellow]")
+        sub_status = run_cmd(["git", "submodule", "status", "--recursive"])
+        for line in sub_status.splitlines():
+            status_char = line[0]
+            sub_info = line[1:].strip()
+            if status_char == '+':
+                logger.info(f"[yellow]Submodule ahead of recorded commit: {sub_info}[/yellow]")
+            elif status_char == '-':
+                logger.info(f"[yellow]Submodule not initialized: {sub_info}[/yellow]")
+            elif status_char == 'U':
+                logger.info(f"[yellow]Submodule has merge conflicts: {sub_info}[/yellow]")
+            elif status_char == ' ':
+                logger.info(f"[green]Submodule up to date: {sub_info}[/green]")
+            else:
+                logger.info(f"[magenta]Submodule status {status_char}: {sub_info}[/magenta]")
+
         logger.info("[bold yellow]🔄 Updating submodules...[/bold yellow]")
         run_cmd(["git", "submodule", "update", "--init", "--recursive"])
         logger.info("[bold green]✅ Submodules updated.[/bold green]")
