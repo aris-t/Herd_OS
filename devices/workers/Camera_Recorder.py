@@ -2,11 +2,12 @@
 from gi.repository import Gst, GLib
 import datetime
 import os
+import signal
+import sys
 Gst.init(None)
 
 from .worker import Worker
 from .Upload_Service import upload_file_in_chunks
-import os
 
 class Camera_Recorder(Worker):
     def __init__(self, device, name, UPLOAD_ON_FINISH=True, DEBUG=False):
@@ -19,40 +20,59 @@ class Camera_Recorder(Worker):
         # Needed for early Termination
         self.pipeline = None
 
+        # Set up signal handlers
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGINT, self._signal_handler)
+
+    def _signal_handler(self, signum, frame):
+        """Handle SIGTERM and SIGINT signals gracefully"""
+        self.logger.info(f"📡 Received signal {signum}, stopping recorder...")
+        self.stop()
+
     def run(self):
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trials")
-        os.makedirs(output_dir, exist_ok=True)
-        self.filename = os.path.join(output_dir, f"output_{timestamp}.mkv")
+        try:
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trials")
+            os.makedirs(output_dir, exist_ok=True)
+            self.filename = os.path.join(output_dir, f"output_{timestamp}.mkv")
 
-        socket_path = "/tmp/testshm"
-        if not os.path.exists(socket_path):
-            self.logger.error(f"❌ Error: Socket path '{socket_path}' does not exist.")
-            raise FileNotFoundError(f"Socket path '{socket_path}' does not exist.")
+            socket_path = "/tmp/testshm"
+            if not os.path.exists(socket_path):
+                self.logger.error(f"❌ Error: Socket path '{socket_path}' does not exist.")
+                raise FileNotFoundError(f"Socket path '{socket_path}' does not exist.")
 
-        pipeline_str = f"""
-        shmsrc socket-path={socket_path} do-timestamp=true is-live=true !
-        video/x-raw,format=I420,width=2304,height=1296,framerate=30/1 !
-        tee name=t
+            pipeline_str = f"""
+            shmsrc socket-path={socket_path} do-timestamp=true is-live=true !
+            video/x-raw,format=I420,width=2304,height=1296,framerate=30/1 !
+            tee name=t
 
-        t. ! queue ! videoconvert ! fakesink sync=false async=false
+            t. ! queue ! videoconvert ! fakesink sync=false async=false
 
-        t. ! queue ! videoconvert !
-        x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast !
-        matroskamux !
-        filesink location={self.filename} sync=false
-        """
+            t. ! queue ! videoconvert !
+            x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast !
+            matroskamux !
+            filesink location={self.filename} sync=false
+            """
 
-        self.pipeline = Gst.parse_launch(pipeline_str)
+            self.pipeline = Gst.parse_launch(pipeline_str)
 
-        # Watch for bus messages to stop cleanly
-        bus = self.pipeline.get_bus()
-        bus.add_signal_watch()
-        bus.connect("message", self.on_message)
+            # Watch for bus messages to stop cleanly
+            bus = self.pipeline.get_bus()
+            bus.add_signal_watch()
+            bus.connect("message", self.on_message)
 
-        self.pipeline.set_state(Gst.State.PLAYING)
-        self.logger.info(f"🎥 Recording to {self.filename}...")
-        self.loop.run()
+            self.pipeline.set_state(Gst.State.PLAYING)
+            self.logger.info(f"🎥 Recording to {self.filename}...")
+
+            # Run the main loop
+            self.loop.run()
+
+        except Exception as e:
+            self.logger.error(f"❌ Error in Camera_Recorder.run(): {e}")
+            self.stop()
+        finally:
+            # Ensure cleanup happens
+            self._cleanup()
 
     def on_message(self, bus, message):
         t = message.type
@@ -65,22 +85,19 @@ class Camera_Recorder(Worker):
             self.stop()
 
     def stop(self):
+        """Stop the recorder gracefully"""
+        if self.loop and self.loop.is_running():
+            self.loop.quit()
+        self._cleanup()
+
+    def _cleanup(self):
+        """Cleanup resources"""
         if self.pipeline:
             self.pipeline.set_state(Gst.State.NULL)
-            self.pipeline.get_bus().remove_signal_watch()
             self.pipeline = None
-        if self.loop.is_running():
-            self.loop.quit()
         self.logger.info("Recorder stopped.")
-        
+
         # Upload the recorded file if enabled
-        self.logger.info(f"Upload status: {self.UPLOAD_ON_FINISH}, "
-                         f"File exists: {hasattr(self, 'filename')}, "
-                         f"File path: {os.path.exists(self.filename)}")
         if self.UPLOAD_ON_FINISH and hasattr(self, 'filename') and os.path.exists(self.filename):
             self.logger.info(f"📤 Uploading {self.filename}...")
             upload_file_in_chunks(self.filename)
-
-        self.is_stopped.value = True
-        self.logger.info("Recorder process request terminate.")
-        self.terminate()

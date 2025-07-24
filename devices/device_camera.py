@@ -54,10 +54,52 @@ class Camera(Device):
 
             for recorder in self.recorders:
                 self.logger.info("Stopping recorder process...")
-                recorder.stop()
-                # recorder.join(timeout=5)
+                try:
+                    # First try graceful stop
+                    recorder.stop()
+                    
+                    # Wait for process to terminate gracefully
+                    recorder.join(timeout=10)
+                    
+                    # If still alive, force terminate
+                    if recorder.is_alive():
+                        self.logger.warning("Recorder didn't stop gracefully, terminating...")
+                        recorder.terminate()
+                        recorder.join(timeout=5)
+                        
+                    # Final check - kill if necessary
+                    if recorder.is_alive():
+                        self.logger.error("Force killing recorder process...")
+                        recorder.kill()
+                        recorder.join()
+                        
+                except Exception as e:
+                    self.logger.error(f"Error stopping recorder: {e}")
+
+            # Clear the recorders list
+            self.recorders.clear()
+            
+            # Remove stopped recorders from processes list
+            self.processes = [p for p in self.processes if not isinstance(p, Camera_Recorder) or p.is_alive()]
+        
         else:
             self.logger.warning("No recorder is running.")
+
+    def cleanup_all_processes(self):
+        """Clean up all processes including recorders"""
+        self.stop_recorder()
+        
+        for process in self.processes:
+            if process.is_alive():
+                try:
+                    process.stop()
+                    process.join(timeout=5)
+                    if process.is_alive():
+                        process.terminate()
+                        process.join()
+                except Exception as e:
+                    self.logger.error(f"Error cleaning up process {process.name}: {e}")
+
 
     # Use Specific Methods for Camera Device
     def start_trial(self, config=None):
