@@ -27,8 +27,8 @@ class Camera_Recorder(Worker):
 
         socket_path = "/tmp/testshm"
         if not os.path.exists(socket_path):
-            print(f"❌ Error: Socket path '{socket_path}' does not exist.")
-            return
+            self.logger.error(f"❌ Error: Socket path '{socket_path}' does not exist.")
+            raise FileNotFoundError(f"Socket path '{socket_path}' does not exist.")
 
         pipeline_str = f"""
         shmsrc socket-path={socket_path} do-timestamp=true is-live=true !
