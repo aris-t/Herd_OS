@@ -55,7 +55,7 @@ class Camera(Device):
             for recorder in self.recorders:
                 self.logger.info("Stopping recorder process...")
                 recorder.stop()
-                recorder.join(timeout=5)
+                # recorder.join(timeout=5)
         else:
             self.logger.warning("No recorder is running.")
 
