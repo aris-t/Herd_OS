@@ -16,9 +16,6 @@ RETRY_DELAY = 60  # seconds
 LOG_FILE = "logs.txt"
 VENV = "myvenv"
 
-# Read environment variable for debug mode
-DEBUG_MODE = os.environ.get("HERDOS_Boots", "0") == "1"
-
 def in_venv():
     return sys.prefix != sys.base_prefix
 
@@ -139,6 +136,7 @@ def pull_and_restart():
 
         logger.info("[bold yellow]🔄 Updating submodules...[/bold yellow]")
         run_cmd(["git", "submodule", "update", "--init", "--recursive"])
+        # git pull origin heads/main
         logger.info("[bold green]✅ Submodules updated.[/bold green]")
 
         logger.info("[bold green]Restarting...[/bold green]")
