@@ -165,38 +165,6 @@ def has_local_changes():
     status = run_cmd(["git", "status", "--porcelain"])
     return bool(status.strip())
 
-def list_v4l2_devices():
-    devices = []
-    video_dir = "/dev"
-    for entry in os.listdir(video_dir):
-        if entry.startswith("video"):
-            device_path = os.path.join(video_dir, entry)
-            devices.append(device_path)
-            camera_infos = []
-            for device in devices:
-                try:
-                    info = run_cmd(["v4l2-ctl", "--device", device, "--all"])
-                    # Parse info: extract key-value pairs (e.g., "Driver Info", "Card type", "Bus info", etc.)
-                    parsed = {}
-                    for line in info.splitlines():
-                        if ':' in line:
-                            key, value = line.split(':', 1)
-                            parsed[key.strip()] = value.strip()
-                    camera_infos.append({"device": device, "info": parsed})
-                except Exception as e:
-                    camera_infos.append({"device": device, "info": {"error": str(e)}})
-
-            # NCE logging format: one line per device, key=value pairs
-            for cam in camera_infos:
-                device = cam["device"]
-                info = cam["info"]
-                if "error" in info:
-                    logger.info(f"[red]NCE_CAMERA device={device} error={info['error']}[/red]")
-                else:
-                    info_str = " ".join(f"{k.replace(' ', '_').lower()}={v}" for k, v in info.items())
-                    logger.info(f"[green]NCE_CAMERA device={device}[/green] [cyan]{info_str}[/cyan]")
-            return devices
-
 def fallback_to_safe_mode():
     logger.warning("[yellow]Falling back to safe mode...[/yellow]")
     python = sys.executable
@@ -228,9 +196,6 @@ def main_loop():
 
     # Sync time from NIST / GPS
     sync_time_from_nist()
-
-    # List available v4l2 devices
-    list_v4l2_devices()
 
     # LAUNCH:
     logger.info("[bold green]✅ Setup Passed. Starting main application...[/bold green]")
