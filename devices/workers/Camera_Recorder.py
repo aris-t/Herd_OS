@@ -51,17 +51,17 @@ class Camera_Recorder(Worker):
         bus.connect("message", self.on_message)
 
         self.pipeline.set_state(Gst.State.PLAYING)
-        print(f"🎥 Recording to {self.filename}...")
+        self.logger.info(f"🎥 Recording to {self.filename}...")
         self.loop.run()
 
     def on_message(self, bus, message):
         t = message.type
         if t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
-            print(f"❌ GStreamer Error: {err}, {debug}")
+            self.logger.error(f"❌ GStreamer Error: {err}, {debug}")
             self.stop()
         elif t == Gst.MessageType.EOS:
-            print("✅ End of Stream")
+            self.logger.info("✅ End of Stream")
             self.stop()
 
     def stop(self):
