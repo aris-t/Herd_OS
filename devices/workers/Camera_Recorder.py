@@ -71,11 +71,13 @@ class Camera_Recorder(Worker):
             self.pipeline = None
         if self.loop.is_running():
             self.loop.quit()
+        self.logger.info("Recorder stopped.")
         
         # Upload the recorded file if enabled
         if self.UPLOAD_ON_FINISH and hasattr(self, 'filename') and os.path.exists(self.filename):
-            print(f"📤 Uploading {self.filename}...")
+            self.logger.info(f"📤 Uploading {self.filename}...")
             upload_file_in_chunks(self.filename)
 
         self.is_stopped.value = True
+        self.logger.info("Recorder process request terminate.")
         self.terminate()
