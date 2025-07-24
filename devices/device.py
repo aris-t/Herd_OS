@@ -14,6 +14,7 @@ CONFIG_PATH = Path("device.cfg")
 class Device:
     def __init__(self, DEBUG=False):
         self.device_id = f"dev-{uuid.uuid4().hex[:6]}"
+        self.group_id = "default_group"
         self.logger = setup_logger(self.device_id)
 
         self.DEBUG = DEBUG  # Set to True for verbose logging during development
@@ -37,6 +38,18 @@ class Device:
             Config_Controller(self, "ConfigAPI"),
             Health_Monitor(self, "HealthMonitor"),
         ]
+
+        self._commands = {
+            "stop": lambda parameter: self.stop(),
+            "start": lambda parameter: self.start(),
+            "status": lambda parameter: self.logger.info(f"Device status: {self.name} (ID: {self.device_id}, IP: {self.ip})"),
+            "rename": lambda new_name: setattr(self, 'name', new_name),
+        }
+
+        # session.subscribe("fleet/all/command", callback)
+        # session.subscribe(f"fleet/device/{self.device_id}/command", callback)
+        # session.subscribe(f"fleet/group/{self.group_id}/command", callback)  # Optional
+
 
     def __setup__(self):
         self.logger.info("Setting up device...")
@@ -124,3 +137,17 @@ class Device:
         """Called whenever name changes"""
         if self.DEBUG:
             self.logger.info(f"Name change event: {old_name} -> {new_name}")
+
+    @property
+    def command_handlers(self):
+        commands = getattr(self, "commands", {})
+        if not isinstance(commands, dict):
+            raise TypeError("Child must define `command_handlers` as a dict.")
+        return self._commands + commands
+
+    def _handle_command(self, command, property=None):
+        handler = self.command_handlers.get(command)
+        if handler:
+            handler(property)  # Pass the property to the handler if it exists
+        else:
+            self.logger.warning(f"No handler found for command: {command}")

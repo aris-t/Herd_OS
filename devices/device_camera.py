@@ -5,7 +5,6 @@ from .device import Device
 from .workers import Camera_Controller
 from .workers import Camera_Recorder  # Ensure this import is correct based on your file structure
 from .workers import Camera_RTPS  # Ensure this import is correct based on your file structure
-from utils.setup_logger import setup_logger
 
 # # ----------------------------------------
 # # Device
@@ -31,11 +30,16 @@ class Camera(Device):
             Camera_RTPS(self, "Camera_RTPS", DEBUG=True)
         ]
 
+        self.commands = {
+            "start_recorder": lambda parameter: self.start_recorder(),
+            "stop_recorder": lambda parameter: self.stop_recorder(),
+        }
+
     def __setup__(self):
         self.logger.info("Setting up device...")
 
     # Device Specific Methods
-    def start_recorder(self):
+    def start_recorder(self, timer=None, chunk_time=False):
         if not self.is_recording:
             self.is_recording = True
             self.logger.info("Starting recorder...")
@@ -85,6 +89,7 @@ class Camera(Device):
         else:
             self.logger.warning("No recorder is running.")
 
+    # Cleanup Methods
     def cleanup_all_processes(self):
         """Clean up all processes including recorders"""
         self.stop_recorder()
@@ -99,7 +104,6 @@ class Camera(Device):
                         process.join()
                 except Exception as e:
                     self.logger.error(f"Error cleaning up process {process.name}: {e}")
-
 
     # Use Specific Methods for Camera Device
     def start_trial(self, config=None):

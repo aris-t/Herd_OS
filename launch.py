@@ -33,11 +33,15 @@ if __name__ == "__main__":
     for device in devices:
         device.start()
 
-    time.sleep(5)
-    camera.start_recorder()
-    time.sleep(20)
-    camera.stop_recorder()
-    time.sleep(5)
-    camera.start_recorder()
-    time.sleep(20)
-    camera.stop_recorder()
+    camera._handle_command("start_recorder", None)
+    time.sleep(5)  # Allow some time for the recorder to start
+    camera._handle_command("stop_recorder", None)
+
+    # time.sleep(5)
+    # camera.start_recorder()
+    # time.sleep(20)
+    # camera.stop_recorder()
+    # time.sleep(5)
+    # camera.start_recorder()
+    # time.sleep(20)
+    # camera.stop_recorder()
