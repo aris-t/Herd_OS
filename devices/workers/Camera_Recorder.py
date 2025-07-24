@@ -9,6 +9,9 @@ Gst.init(None)
 from .worker import Worker
 from .Upload_Service import upload_file_in_chunks
 
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trials")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 class Camera_Recorder(Worker):
     def __init__(self, device, name, UPLOAD_ON_FINISH=True, DEBUG=False):
         super().__init__(device, name)
@@ -32,9 +35,7 @@ class Camera_Recorder(Worker):
     def run(self):
         try:
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trials")
-            os.makedirs(output_dir, exist_ok=True)
-            self.filename = os.path.join(output_dir, f"output_{timestamp}.mkv")
+            self.filename = os.path.join(OUTPUT_DIR, f"output_{timestamp}.mkv")
 
             socket_path = "/tmp/testshm"
             if not os.path.exists(socket_path):

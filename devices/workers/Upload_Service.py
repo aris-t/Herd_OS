@@ -8,7 +8,7 @@ import sys
 
 # Configuration
 CHUNK_SIZE = 1 * 1024 * 1024  # 1MB
-UPLOAD_URL = os.getenv("UPLOAD_ENDPOINT", "192.168.1.10:9001/upload_chunk")
+UPLOAD_URL = os.getenv("UPLOAD_ENDPOINT", "http://192.168.1.10:9001/upload_chunk")
 API_KEY = os.getenv("API_KEY", "your_default_api_key")
 
 # Logging setup
