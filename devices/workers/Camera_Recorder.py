@@ -16,6 +16,9 @@ class Camera_Recorder(Worker):
         self.loop = GLib.MainLoop()
         self.UPLOAD_ON_FINISH = UPLOAD_ON_FINISH
 
+        # Needed for early Termination
+        self.pipeline = None
+
     def run(self):
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trials")

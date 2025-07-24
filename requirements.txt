@@ -15,6 +15,9 @@ PyGObject
 # NTP time synchronization
 ntplib
 
+# Upload
+tenacity
+
 # Standard library modules (no installation needed)
 # - multiprocessing
 # - threading
