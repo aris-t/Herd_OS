@@ -180,6 +180,7 @@ class Device:
                 handler = self.command_handlers.get(command)
                 if handler:
                     self.logger.info(f"Executing handler for command: {command}")
+                    handler(property)
                 else:
                     self.logger.warning(f"No handler found for command: {command}")
             else:
