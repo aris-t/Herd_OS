@@ -173,6 +173,7 @@ class Device:
 
     def _handle_command(self):
         while not self.is_stopped.value:
+            self.logger.info(f"Current message queue length: {self.message_queue.qsize()}")
             if not self.message_queue.empty():
                 self.logger.info("Processing command...")
                 command, property = self.message_queue.get()
