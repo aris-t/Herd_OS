@@ -12,8 +12,8 @@ from multiprocessing import Value
 # # ----------------------------------------
 
 class Camera(Device):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, logger=None, DEBUG=False):
+        super().__init__(logger=logger, DEBUG=DEBUG)
 
         self.multicast_ip = "239.255.42.42"
         self.port = 5555
