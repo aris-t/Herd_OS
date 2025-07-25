@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-
 from .device import Device
 from .workers import Camera_Controller
 from .workers import Camera_Recorder  # Ensure this import is correct based on your file structure

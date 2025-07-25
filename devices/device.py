@@ -3,10 +3,13 @@ import uuid
 import socket
 from pathlib import Path
 import json
+import zenoh
+import threading
 
 from .workers import Health_Monitor, Config_Controller
 from utils.setup_logger import setup_logger
 
+import queue
 from multiprocessing import Manager, Lock, Value
 
 CONFIG_PATH = Path("device.cfg")
@@ -33,6 +36,19 @@ class Device:
             'device_name': "Device Template",
         })
 
+        # Zenoh
+        config = zenoh.Config()
+        self.session = zenoh.open(config)
+        self.subscribers = [
+            self.session.declare_subscriber("global/COMMAND/*", self.listener),
+            self.session.declare_subscriber(f"{self.group_id}/COMMAND/*", self.listener),
+            self.session.declare_subscriber(f"{self.device_id}/COMMAND/*", self.listener)
+        ]
+
+        self.message_queue = queue.Queue()
+        self.worker_thread = threading.Thread(target=self._handle_command, daemon=True)
+        self.worker_thread.start()
+
         # Required base processes
         self._processes = [
             Config_Controller(self, "ConfigAPI"),
@@ -45,11 +61,6 @@ class Device:
             "status": lambda parameter: self.logger.info(f"Device status: {self.name} (ID: {self.device_id}, IP: {self.ip})"),
             "rename": lambda new_name: setattr(self, 'name', new_name),
         }
-
-        # session.subscribe("fleet/all/command", callback)
-        # session.subscribe(f"fleet/device/{self.device_id}/command", callback)
-        # session.subscribe(f"fleet/group/{self.group_id}/command", callback)  # Optional
-
 
     def __setup__(self):
         self.logger.info("Setting up device...")
@@ -69,6 +80,15 @@ class Device:
         self.logger.info("Device started.")
 
     def stop(self):
+        self.is_stopped.value = True  # Signal processes to stop
+
+        """Undeclare subscribers and clean up."""
+        for topic, sub in self.subscribers.items():
+            sub.undeclare()
+            print(f"Unsubscribed from '{topic}'")
+        self.subscribers.clear()
+        self.session.close()
+
         for process in self.process_list:
             self.is_stopped.value = True  # Signal processes to stop
             process.stop()
@@ -87,8 +107,6 @@ class Device:
             self.logger.warning(f"⚠️ IP Self-Check failed: {e}")
             ip = "0.0.0.0"
         return ip
-
-    # Zenoh command managment
 
     # Device Lifecycle
     @property
@@ -159,3 +177,9 @@ class Device:
             return handler(property)  # Pass the property to the handler if it exists
         else:
             self.logger.warning(f"No handler found for command: {command}")
+
+    def listener(self, sample):
+        payload = bytes(sample.payload).decode("utf-8")
+        self.message_queue.put(payload)
+        self.logger.info(f"Message received: {payload}")
+
