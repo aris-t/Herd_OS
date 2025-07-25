@@ -15,10 +15,12 @@ from multiprocessing import Manager, Lock, Value
 CONFIG_PATH = Path("device.cfg")
 
 class Device:
-    def __init__(self, DEBUG=False):
+    def __init__(self, logger = None, DEBUG=False):
         self.device_id = f"dev-{uuid.uuid4().hex[:6]}"
         self.group_id = "default_group"
-        self.logger = setup_logger(self.device_id)
+        
+        if logger is None:
+            self.logger = setup_logger(self.device_id)
 
         self.DEBUG = DEBUG  # Set to True for verbose logging during development
         self.boot_time = time.time()
