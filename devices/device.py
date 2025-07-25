@@ -171,12 +171,14 @@ class Device:
                 self.logger.warning(f"Duplicate command found: {k} cannot ovveride")
         return combined
 
-    def _handle_command(self, command, property=None):
-        handler = self.command_handlers.get(command)
-        if handler:
-            return handler(property)  # Pass the property to the handler if it exists
-        else:
-            self.logger.warning(f"No handler found for command: {command}")
+    def _handle_command(self):
+        while True:
+            command, property = self.message_queue.get()
+            handler = self.command_handlers.get(command)
+            if handler:
+                return handler(property)  # Pass the property to the handler if it exists
+            else:
+                self.logger.warning(f"No handler found for command: {command}")
 
     def listener(self, sample):
         payload = bytes(sample.payload).decode("utf-8")
