@@ -5,6 +5,8 @@ from .workers import Camera_Controller
 from .workers import Camera_Recorder  # Ensure this import is correct based on your file structure
 from .workers import Camera_RTPS  # Ensure this import is correct based on your file structure
 
+from multiprocessing import Value
+
 # # ----------------------------------------
 # # Device
 # # ----------------------------------------
@@ -21,6 +23,7 @@ class Camera(Device):
         self.target_bitrate = 4000
 
         # Control flags
+        self.camera_is_ready = Value('b', False)
         self.recorders = []
         self.is_recording = False
 

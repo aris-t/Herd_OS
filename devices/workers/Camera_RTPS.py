@@ -28,6 +28,10 @@ class Camera_RTPS(Worker):
         self.device = device
 
     def run(self):
+        while self.device.camera_is_ready.value is False:
+            self.logger.info("Waiting for camera to be ready...")
+            GLib.timeout_add_seconds(1, lambda: None)
+        
         server = GstRtspServer.RTSPServer()
         mounts = server.get_mount_points()
         mounts.add_factory("/stream", TestFactory())

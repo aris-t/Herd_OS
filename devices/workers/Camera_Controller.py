@@ -82,6 +82,9 @@ class Camera_Controller(Worker):
             pipeline = Gst.parse_launch(pipeline_str)
             pipeline.set_state(Gst.State.PLAYING)
 
+            self.logger.info("Camera is Ready and streaming...")
+            self.device.camera_is_ready.value = True
+
             # Keep running until user interrupts
             try:
                 loop = GObject.MainLoop()
