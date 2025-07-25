@@ -2,8 +2,6 @@
 from gi.repository import Gst, GLib
 import datetime
 import os
-import signal
-import sys
 Gst.init(None)
 
 from .worker import Worker
@@ -22,15 +20,6 @@ class Camera_Recorder(Worker):
 
         # Needed for early Termination
         self.pipeline = None
-
-        # Set up signal handlers
-        signal.signal(signal.SIGTERM, self._signal_handler)
-        signal.signal(signal.SIGINT, self._signal_handler)
-
-    def _signal_handler(self, signum, frame):
-        """Handle SIGTERM and SIGINT signals gracefully"""
-        self.logger.info(f"📡 Received signal {signum}, stopping recorder...")
-        self.stop()
 
     def run(self):
         try:
