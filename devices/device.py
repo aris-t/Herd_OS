@@ -180,8 +180,12 @@ class Device:
             else:
                 self.logger.warning(f"No handler found for command: {command}")
 
+    def put_command(self, command, property=None):
+        self.message_queue.put((command, property))
+        self.logger.info(f"Message sent: {command}, {property}")
+
     def listener(self, sample):
         payload = bytes(sample.payload).decode("utf-8")
-        self.message_queue.put(payload)
+        self.message_queue.put((payload[0], payload[1:]))
         self.logger.info(f"Message received: {payload}")
 

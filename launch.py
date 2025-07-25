@@ -34,9 +34,9 @@ if __name__ == "__main__":
         device.start()
 
     time.sleep(2)  # Allow some time for devices to initialize
-    camera._handle_command("start_recorder", None)
+    camera.put_command("start_recorder", None)
     time.sleep(5)  # Allow some time for the recorder to start
-    camera._handle_command("stop_recorder", None)
+    camera.put_command("stop_recorder", None)
 
     # time.sleep(5)
     # camera.start_recorder()
