@@ -83,11 +83,11 @@ class Device:
         self.is_stopped.value = True  # Signal processes to stop
 
         """Undeclare subscribers and clean up."""
-        for topic, sub in self.subscribers.items():
+        for sub in self.subscribers:
             sub.undeclare()
-            print(f"Unsubscribed from '{topic}'")
         self.subscribers.clear()
         self.session.close()
+        self.logger.info("Undeclared all subscribers and closed Zenoh session.")
 
         for process in self.process_list:
             self.is_stopped.value = True  # Signal processes to stop
