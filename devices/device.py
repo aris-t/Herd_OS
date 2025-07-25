@@ -172,13 +172,16 @@ class Device:
         return combined
 
     def _handle_command(self):
-        while True:
-            command, property = self.message_queue.get()
-            handler = self.command_handlers.get(command)
-            if handler:
-                return handler(property)  # Pass the property to the handler if it exists
+        while not self.is_stopped.value:
+            if not self.message_queue.empty():
+                command, property = self.message_queue.get()
+                handler = self.command_handlers.get(command)
+                if handler:
+                    return handler(property)  # Pass the property to the handler if it exists
+                else:
+                    self.logger.warning(f"No handler found for command: {command}")
             else:
-                self.logger.warning(f"No handler found for command: {command}")
+                time.sleep(0.1)
 
     def put_command(self, command, property=None):
         self.message_queue.put((command, property))
