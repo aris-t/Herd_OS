@@ -75,12 +75,12 @@ class Camera_Recorder(Worker):
             self.stop()
 
     def stop(self):
-        self.logger.info("Stopping the recorder gracefully...")
+        self.logger.info("✅ Stopping the recorder gracefully...")
         if self.loop and self.loop.is_running():
             self.loop.quit()
 
-        self.logger.info("Stopping GStreamer pipeline...")
         if self.pipeline:
+            self.logger.info("✅ Stopping GStreamer pipeline...")
             self.pipeline.set_state(Gst.State.NULL)
             self.pipeline = None
         self.logger.info("Recorder stopped.")
