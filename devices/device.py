@@ -52,7 +52,7 @@ class Device:
         # Required base processes
         self._processes = [
             Config_Controller(self, "ConfigAPI"),
-            Health_Monitor(self, "HealthMonitor"),
+            Health_Monitor(self, "HealthMonitor", verbose=False),
         ]
 
         self._commands = {

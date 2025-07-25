@@ -7,9 +7,10 @@ import time
 # Health Broadcaster
 # ----------------------------------------
 class Health_Monitor(Worker):
-    def __init__(self, device, name):
+    def __init__(self, device, name, DEBUG=False, verbose=False):
         super().__init__(device, name)
         self.logger.info(f"Health INITIALIZED for device {self.device.device_id}")
+        self.verbose = verbose
 
     def run(self):
         config = zenoh.Config()
@@ -26,7 +27,8 @@ class Health_Monitor(Worker):
             try:
                 ping = f"{time.time()}, {self.device.device_id}, {self.device.name}, {self.device.ip}"
                 pub.put(ping)
-                self.logger.info(f"Health Ping: {ping}")
+                if self.verbose:
+                    self.logger.info(f"Health Ping: {ping}")
                 time.sleep(1)
             except Exception as e:
                 self.logger.error(f"Health Publisher Error: {e}")
