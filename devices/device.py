@@ -18,9 +18,11 @@ class Device:
     def __init__(self, logger = None, DEBUG=False):
         self.device_id = f"dev-{uuid.uuid4().hex[:6]}"
         self.group_id = "default_group"
-        
+
         if logger is None:
             self.logger = setup_logger(self.device_id)
+        else:
+            self.logger = logger
 
         self.DEBUG = DEBUG  # Set to True for verbose logging during development
         self.boot_time = time.time()
