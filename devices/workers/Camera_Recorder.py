@@ -1,3 +1,5 @@
+# https://gstreamer.freedesktop.org/documentation/x264/index.html?gi-language=c#GstX264EncPreset
+
 #!/usr/bin/env python3
 from gi.repository import Gst, GLib
 import datetime
@@ -7,7 +9,7 @@ Gst.init(None)
 from .worker import Worker
 from .Upload_Service import upload_file_in_chunks
 
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trials")
+OUTPUT_DIR = os.path.join(os.getcwd(), "trials")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 class Camera_Recorder(Worker):
@@ -15,17 +17,30 @@ class Camera_Recorder(Worker):
         super().__init__(device, name)
         self.DEBUG = DEBUG
         self.device = device
-        self.loop = GLib.MainLoop()
         self.UPLOAD_ON_FINISH = UPLOAD_ON_FINISH
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.filename = os.path.join(OUTPUT_DIR, f"output_{timestamp}.mkv")
+
+        # Create a new, dedicated GLib main context
+        self.context = GLib.MainContext.new()
+
+        # Create the main loop using that context
+        self.loop = GLib.MainLoop(context=self.context)
 
         # Needed for early Termination
         self.pipeline = None
 
     def run(self):
         try:
-            timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            self.filename = os.path.join(OUTPUT_DIR, f"output_{timestamp}.mkv")
+            # Step 1: 
+            self.context.push_thread_default()
+            if GLib.MainContext.get_thread_default() == self.context:
+                self.logger.info("✅ Thread default context matches self.context.")
+            else:
+                self.logger.warning("🚨 Thread default context does NOT match self.context.")
 
+            # Step 2
             socket_path = "/tmp/testshm"
             if not os.path.exists(socket_path):
                 self.logger.error(f"❌ Error: Socket path '{socket_path}' does not exist.")
@@ -39,7 +54,7 @@ class Camera_Recorder(Worker):
             t. ! queue ! videoconvert ! fakesink sync=false async=false
 
             t. ! queue ! videoconvert !
-            x264enc tune=zerolatency bitrate=500 speed-preset=ultrafast !
+            x264enc tune=zerolatency speed-preset=fast pass=qual quantizer=10 !
             matroskamux !
             filesink location={self.filename} sync=false
             """
@@ -56,13 +71,15 @@ class Camera_Recorder(Worker):
 
             # Run the main loop
             self.loop.run()
+            self.logger.info("🎬 Main loop exited.")
 
         except Exception as e:
             self.logger.error(f"❌ Error in Camera_Recorder.run(): {e}")
             self.stop()
         finally:
             # Ensure cleanup happens
-            self._cleanup()
+            self.context.pop_thread_default()
+            self.stop()
 
     def on_message(self, bus, message):
         t = message.type
@@ -75,18 +92,47 @@ class Camera_Recorder(Worker):
             self.stop()
 
     def stop(self):
-        self.logger.info("✅ Stopping the recorder gracefully...")
-        if self.loop and self.loop.is_running():
-            self.loop.quit()
+        self.logger.info("Stopping the recorder gracefully...")
 
-        if self.pipeline:
-            self.logger.info("✅ Stopping GStreamer pipeline...")
-            self.pipeline.set_state(Gst.State.NULL)
-            self.pipeline = None
-        self.logger.info("Recorder stopped.")
+        self.context.push_thread_default()
+        if GLib.MainContext.get_thread_default() == self.context:
+            self.logger.info("✅ Thread default context matches self.context.")
+        else:
+            self.logger.warning("🚨 Thread default context does NOT match self.context.")
 
-        # Upload the recorded file if enabled
-        self.logger.info(f"UPLOAD_ON_FINISH: {self.UPLOAD_ON_FINISH}, filename exists: {hasattr(self, 'filename') and os.path.exists(self.filename)}")
+        def _shutdown():
+            # Ensure we're running inside the correct GLib thread
+            if GLib.MainContext.get_thread_default() == self.context:
+                self.logger.info("🏠 Inside shutdown: correct thread context.")
+            else:
+                self.logger.warning("🚨 Inside shutdown: wrong thread context.")
+
+            # Stop the pipeline safely
+            if self.pipeline:
+                self.logger.info("✅ Stopping GStreamer pipeline...")
+                self.pipeline.set_state(Gst.State.NULL)
+                self.pipeline = None
+                self.logger.info("Recorder stopped.")
+
+            # Quit the GLib loop
+            if self.loop and self.loop.is_running():
+                self.logger.info("🔁 Quitting main loop...")
+                self.loop.quit()
+
+            return False  # one-shot idle callback
+
+        # Schedule shutdown on the correct context
+        GLib.idle_add(_shutdown, context=self.context)
+
+        # Poke the loop in case it's idle
+        GLib.idle_add(lambda: None, context=self.context)
+
+        # Upload can safely happen here in the current thread
+        self.logger.info("✅ Gstreamer stop requested.")
+
         if self.UPLOAD_ON_FINISH and hasattr(self, 'filename') and os.path.exists(self.filename):
             self.logger.info(f"📤 Uploading {self.filename}...")
             upload_file_in_chunks(self.filename)
+
+        return True
+

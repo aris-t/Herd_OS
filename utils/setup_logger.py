@@ -1,5 +1,4 @@
 import logging
-import os
 from rich.logging import RichHandler
 
 # ----------------------------------------
@@ -9,20 +8,22 @@ def setup_logger(name: str, logger_path: str = './logs.txt') -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
-    # Create formatter for file handler, including PID
-    formatter = logging.Formatter('%(asctime)s %(levelname)s [PID:%(process)d] %(message)s')
-
-    # File handler with traditional formatting
+    # File formatter (no color)
+    formatter = logging.Formatter('[PID:%(process)d] %(message)s')
     fh = logging.FileHandler(logger_path)
     fh.setFormatter(formatter)
 
-    # Console handler with Rich formatting, including PID in message
     class PIDRichHandler(RichHandler):
         def emit(self, record):
-            record.msg = f"[PID:{record.process}] {record.msg}"
+            # Format message for rich console output with markup
+            message = record.getMessage()
+            record.message = f"[PID:[cyan]{record.process}[/cyan]] {message}"
+            record.msg = record.message
+            record.args = ()
             super().emit(record)
 
     ch = PIDRichHandler(
+        markup=True,
         show_time=True,
         show_level=True,
         show_path=True,

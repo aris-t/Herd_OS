@@ -30,7 +30,7 @@ class Camera(Device):
         # TODO Need to include LETHAL flag for critical processes that fail to start
         self.processes = [
             Camera_Controller(self, "Camera_Controller", DEBUG=True),
-            Camera_RTPS(self, "Camera_RTPS", DEBUG=True)
+            #Camera_RTPS(self, "Camera_RTPS", DEBUG=True)
         ]
 
         self.commands = {
@@ -63,22 +63,30 @@ class Camera(Device):
                 self.logger.info("Stopping recorder process...")
                 try:
                     # First try graceful stop
-                    recorder.stop()
+                    returned = recorder.stop()
+                    self.logger.info(f"Manager: Recorder stopped gracefully: {returned}")
+                    
+                    if not recorder.is_alive():
+                        self.logger.info("Recorder process is confirmed dead.")
+                    else:
+                        self.logger.warning("Recorder process is still alive after stop attempt.")
                     
                     # Wait for process to terminate gracefully
-                    recorder.join(timeout=10)
+                    recorder.join(timeout=0.5)
                     
                     # If still alive, force terminate
                     if recorder.is_alive():
                         self.logger.warning("Recorder didn't stop gracefully, terminating...")
                         recorder.terminate()
-                        recorder.join(timeout=5)
+                        recorder.join(timeout=0.5)
                         
                     # Final check - kill if necessary
                     if recorder.is_alive():
                         self.logger.error("Force killing recorder process...")
                         recorder.kill()
                         recorder.join()
+                    else:
+                        self.logger.info("✅ Its dead Jim... ✅")
                         
                 except Exception as e:
                     self.logger.error(f"Error stopping recorder: {e}")

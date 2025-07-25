@@ -1,19 +1,18 @@
 import os
 import argparse
-import logging
 import requests
 from hashlib import md5
+from utils.setup_logger import setup_logger
 from tenacity import retry, stop_after_attempt, wait_fixed
 import sys
+
+# Logging setup
+logger = setup_logger("Upload_Service")
 
 # Configuration
 CHUNK_SIZE = 1 * 1024 * 1024  # 1MB
 UPLOAD_URL = os.getenv("UPLOAD_ENDPOINT", "http://192.168.1.10:9001/upload_chunk")
 API_KEY = os.getenv("API_KEY", "your_default_api_key")
-
-# Logging setup
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ChunkUploader")
 
 def generate_chunks(filepath):
     filesize = os.path.getsize(filepath)
