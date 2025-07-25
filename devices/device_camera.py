@@ -25,6 +25,7 @@ class Camera(Device):
         self.recorders = []
         self.is_recording = False
 
+        # TODO Need to include LETHAL flag for critical processes that fail to start
         self.processes = [
             Camera_Controller(self, "Camera_Controller", DEBUG=True),
             Camera_RTPS(self, "Camera_RTPS", DEBUG=True)

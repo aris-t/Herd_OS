@@ -65,6 +65,7 @@ class Device:
         print(f"\n\nStarting {len(self.process_list)} processes...")
         for process in self.process_list:
             process.start()
+            time.sleep(0.1)  # Small delay to allow processes to initialize
         self.logger.info("Device started.")
 
     def stop(self):
