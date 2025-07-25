@@ -86,7 +86,7 @@ class Camera_Recorder(Worker):
         self.logger.info("Recorder stopped.")
 
         # Upload the recorded file if enabled
-        self.logger.info(f"UPLOAD_ON_FINISH: {self.UPLOAD_ON_FINISH}")
+        self.logger.info(f"UPLOAD_ON_FINISH: {self.UPLOAD_ON_FINISH}, filename exists: {hasattr(self, 'filename') and os.path.exists(self.filename)}")
         if self.UPLOAD_ON_FINISH and hasattr(self, 'filename') and os.path.exists(self.filename):
             self.logger.info(f"📤 Uploading {self.filename}...")
             upload_file_in_chunks(self.filename)
