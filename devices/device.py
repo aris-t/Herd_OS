@@ -174,9 +174,12 @@ class Device:
     def _handle_command(self):
         while not self.is_stopped.value:
             if not self.message_queue.empty():
+                self.logger.info("Processing command...")
                 command, property = self.message_queue.get()
+                self.logger.info(f"Received command: {command}, property: {property}")
                 handler = self.command_handlers.get(command)
                 if handler:
+                    self.logger.info(f"Executing handler for command: {command}")
                     return handler(property)  # Pass the property to the handler if it exists
                 else:
                     self.logger.warning(f"No handler found for command: {command}")
