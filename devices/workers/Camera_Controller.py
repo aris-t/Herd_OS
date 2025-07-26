@@ -50,13 +50,26 @@ class Camera_Controller(Worker):
                     [4608, 2592, [14.35]]
                 ]
             
+            # Add a timeoverlay element to inject a timestamp on each frame
             pipeline_str = (
-            f"libcamerasrc af-mode=continuous ! videoconvert ! "
-            "video/x-raw,width=2304,height=1296,framerate=30/1,format=I420 ! "
-            "tee name=t "
-            "t. ! queue leaky=downstream max-size-buffers=2 ! "
-            f"shmsink socket-path={self.shm_path} shm-size=100000000 sync=false wait-for-connection=false "
-            "t. ! fakesink"
+                "libcamerasrc af-mode=continuous ! "
+
+                "videoconvert ! "
+                
+                f"textoverlay  halignment=center valignment=top text=\"{self.device.device_id}:{self.device.name}\" font-desc=\"Sans, 5\" ! "
+                "clockoverlay  halignment=right valignment=top time-format=\"%D_%H:%M:%S\" font-desc=\"Sans, 5\" ! "
+                "clockoverlay  halignment=left valignment=top time-format=\"%D_%H:%M:%S\" font-desc=\"Sans, 5\" ! "
+
+                f"textoverlay  halignment=center valignment=bottom text=\"{self.device.device_id}:{self.device.name}\" font-desc=\"Sans, 5\" ! "
+                "clockoverlay  halignment=right valignment=bottom time-format=\"%D_%H:%M:%S\" font-desc=\"Sans, 5\" ! "
+                "clockoverlay  halignment=left valignment=bottom time-format=\"%D_%H:%M:%S\" font-desc=\"Sans, 5\" ! "
+
+                "video/x-raw,width=2304,height=1296,framerate=30/1,format=I420 ! "
+
+                "tee name=t "
+                "t. ! queue leaky=downstream max-size-buffers=2 ! "
+                f"shmsink socket-path={self.shm_path} shm-size=100000000 sync=false wait-for-connection=false "
+                "t. ! fakesink"
             )
 
         return pipeline_str

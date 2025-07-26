@@ -26,26 +26,53 @@ class Camera_RTPS(Worker):
         super().__init__(device,name)
         self.DEBUG = DEBUG
         self.device = device
+        self.server = None
+        self.main_loop = None
 
     def run(self):
         while self.device.camera_is_ready.value is False:
             self.logger.info("Waiting for camera to be ready...")
             GLib.timeout_add_seconds(1, lambda: None)
         
-        server = GstRtspServer.RTSPServer()
-        mounts = server.get_mount_points()
+        self.server = GstRtspServer.RTSPServer()
+        mounts = self.server.get_mount_points()
         mounts.add_factory("/stream", TestFactory())
 
-        res = server.attach(None)
+        res = self.server.attach(None)
         if not res:
             print("❌ Failed to attach RTSP server")
+            return
         else:
             print(f"✅ RTSP server running at rtsp://{self.device.ip}:8554/stream")
 
-        GLib.MainLoop().run()
+        self.main_loop = GLib.MainLoop()
+        
+        # Check periodically if we should stop
+        def check_stop():
+            if self.is_stopped.value:
+                self.main_loop.quit()
+                return False  # Don't repeat
+            return True  # Continue checking
+        
+        GLib.timeout_add_seconds(1, check_stop)
+        self.main_loop.run()
 
     def stop(self):
+        self.logger.info(f"[{self.device.device_id}][{self.name}] Stopping RTSP server...")
         self.is_stopped.value = True
+        
+        # Stop the main loop if it's running
+        if self.main_loop and self.main_loop.is_running():
+            self.main_loop.quit()
+        
+        # Clean up the server
+        if self.server:
+            # Remove all mount points
+            mounts = self.server.get_mount_points()
+            mounts.remove_factory("/stream")
+            self.server = None
+        
+        self.logger.info(f"[{self.device.device_id}][{self.name}] RTSP server stopped")
 
 # RX gst-launch-1.0 -v rtspsrc location=rtsp://192.168.1.50:8554/stream latency=50 protocols=tcp ! rtph264depay ! avdec_h264 ! videoconvert ! autovideosink
 

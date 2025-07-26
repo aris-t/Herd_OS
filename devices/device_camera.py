@@ -6,6 +6,7 @@ from .workers import Camera_Recorder  # Ensure this import is correct based on y
 from .workers import Camera_RTPS  # Ensure this import is correct based on your file structure
 
 from multiprocessing import Value
+import time
 
 # # ----------------------------------------
 # # Device
@@ -23,31 +24,39 @@ class Camera(Device):
         self.target_bitrate = 4000
 
         # Control flags
-        self.camera_is_ready = Value('b', False)
+
         self.recorders = []
+
+        # Health Flags
+        self.camera_is_ready = Value('b', False)
+        self.in_trial = Value('b', False)
+        self.is_passive = Value('b', False)
         self.is_recording = False
+        self.is_streaming = False
 
         # TODO Need to include LETHAL flag for critical processes that fail to start
         self.processes = [
             Camera_Controller(self, "Camera_Controller", DEBUG=True),
-            #Camera_RTPS(self, "Camera_RTPS", DEBUG=True)
+            Camera_RTPS(self, "Camera_RTPS", DEBUG=True)
         ]
 
         self.commands = {
             "start_recorder": lambda parameter: self.start_recorder(),
             "stop_recorder": lambda parameter: self.stop_recorder(),
+            "start_trial": lambda trial_name: self.start_trial(trial_name),
+            "stop_trial": lambda parameter: self.stop_trial(),
         }
 
     def __setup__(self):
         self.logger.info("Setting up device...")
 
     # Device Specific Methods
-    def start_recorder(self, timer=None, chunk_time=False):
+    def start_recorder(self,file_base=None, timer=None):
         if not self.is_recording:
             self.is_recording = True
             self.logger.info("Starting recorder...")
 
-            recorder = Camera_Recorder(self, "Camera_Recorder", DEBUG=True)
+            recorder = Camera_Recorder(self, "Camera_Recorder", file_base=file_base)
             self.processes.append(recorder)
             self.recorders.append(recorder)
             recorder.start()
@@ -100,7 +109,6 @@ class Camera(Device):
         else:
             self.logger.warning("No recorder is running.")
 
-    # Cleanup Methods
     def cleanup_all_processes(self):
         """Clean up all processes including recorders"""
         self.stop_recorder()
@@ -116,18 +124,24 @@ class Camera(Device):
                 except Exception as e:
                     self.logger.error(f"Error cleaning up process {process.name}: {e}")
 
-    # Use Specific Methods for Camera Device
-    def start_trial(self, config=None):
+    ### Use Specific Methods for Camera Device
+    # Trial Camera
+    def start_trial(self, trial_name):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        trial_dir = os.path.join("trials", f"trial_{timestamp}")
-        os.makedirs(trial_dir, exist_ok=True)
-
-        if config:
-            with open(os.path.join(trial_dir, "config.txt"), "w") as f:
-                f.write(str(config))
-        with open(os.path.join(trial_dir, "started.txt"), "w") as f:
-            f.write(f"Trial started at {timestamp}\n")
-        self.logger.info(f"Trial started at {trial_dir}")
+        self.start_recorder(file_base=f"{trial_name}_{self.name}")
 
     def stop_trial(self):
         self.logger.info("Trial stopped.")
+        self.stop_recorder()
+
+    # Passive Camera
+    def start_passive(self):
+        self.logger.info("Starting passive camera...")
+        while not self.is_stopped.value or self.is_passive.value:
+            self.start_recorder(file_base=f"passive_{self.name}")
+            time.sleep(120)  # Record for 2 minutes
+            self.stop_recorder()
+
+    def stop_passive(self):
+        self.logger.info("Stopping passive camera...")
+        self.is_passive.value = False

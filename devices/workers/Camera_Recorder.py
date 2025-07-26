@@ -13,14 +13,18 @@ OUTPUT_DIR = os.path.join(os.getcwd(), "trials")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 class Camera_Recorder(Worker):
-    def __init__(self, device, name, UPLOAD_ON_FINISH=True, DEBUG=False):
+    def __init__(self, device, name, file_base= None, UPLOAD_ON_FINISH=True, DEBUG=False):
         super().__init__(device, name)
         self.DEBUG = DEBUG
         self.device = device
         self.UPLOAD_ON_FINISH = UPLOAD_ON_FINISH
+        self.file_base = file_base
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.filename = os.path.join(OUTPUT_DIR, f"output_{timestamp}.mkv")
+        if self.file_base is not None:
+            self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.file_base}.mkv")
+        else:
+            self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.device.device_id}_output.mkv")
 
         # Create a new, dedicated GLib main context
         self.context = GLib.MainContext.new()
