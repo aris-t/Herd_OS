@@ -11,10 +11,12 @@ import subprocess
 Gst.init(None)
 
 class Camera_Controller(Worker):
-    def __init__(self, device, name, DEBUG=False, OVERWRITE_SHM=True):
+    def __init__(self, device, name, DEBUG=False, LETHAL=False, OVERWRITE_SHM=True):
         super().__init__(device,name)
         self.OVERWRITE_SHM = OVERWRITE_SHM
         self.DEBUG = DEBUG
+        self.LETHAL = LETHAL
+
         self.device = device
 
         self.shm_path = "/tmp/testshm"
@@ -24,7 +26,7 @@ class Camera_Controller(Worker):
 
             # TODO fingerpint the camera and hardware
 
-    def gstreamer_factory(self, mode, width=640, height=480, framerate=30, format="I420", shm_size=10000000, show_preview=False):
+    def gstreamer_factory(self, mode, width=640, height=480, framerate=30, format="I420", shm_size=13442688, show_preview=False):
         # Build pipeline elements as a list for clarity and flexibility
         # Debug Pipeline
         if mode == "debug":
@@ -68,7 +70,9 @@ class Camera_Controller(Worker):
 
                 "tee name=t "
                 "t. ! queue leaky=downstream max-size-buffers=2 ! "
-                f"shmsink socket-path={self.shm_path} shm-size=100000000 sync=false wait-for-connection=false "
+                # 3 × 4,480,896 = 13,442,688 bytes
+                # shm_size = width * height * 3 // 2 * num_frames
+                f"shmsink socket-path={self.shm_path} shm-size=13442688 sync=false wait-for-connection=false "
                 "t. ! fakesink"
             )
 
@@ -83,12 +87,12 @@ class Camera_Controller(Worker):
             if self.OVERWRITE_SHM:
                 try:
                     os.remove(self.shm_path)
-                    print(f"🧹 OVERWRITING existing socket file: {self.shm_path}")
+                    self.logger.info(f"🧹 OVERWRITING existing socket file: {self.shm_path}")
                 except Exception as e:
-                    print(f"⚠️ Failed to remove existing socket file: {e}")
+                    self.logger.warning(f"⚠️ Failed to remove existing socket file: {e}")
                     self.health.value = 2
             else:
-                print(f"Shared memory destination '{self.shm_path}' already exists. Aborting.")
+                self.logger.warning(f"Shared memory destination '{self.shm_path}' already exists. Aborting.")
                 self.health.value = 2  # Error state
                 return
         else:
@@ -114,8 +118,8 @@ class Camera_Controller(Worker):
         try:
             if os.path.exists(self.shm_path):
                 os.remove(self.shm_path)
-                print(f"🧹 Removed socket file: {self.shm_path}")
+                self.logger.info(f"🧹 Removed socket file: {self.shm_path}")
         except Exception as e:
-            print(f"⚠️ Failed to remove socket file: {e}")
+            self.logger.info(f"⚠️ Failed to remove socket file: {e}")
         time.sleep(1)  # Give some time for the process to stop gracefully
         self.terminate()

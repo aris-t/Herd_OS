@@ -57,6 +57,7 @@ def upload_chunk(filename, chunk_index, total_chunks, chunk_data):
         raise
 
 def upload_file_in_chunks(filepath):
+    server_avalible = False
     try:
         if not os.path.exists(filepath):
             logger.error(f"❌ File not found: {filepath}")
@@ -70,25 +71,30 @@ def upload_file_in_chunks(filepath):
         # Test server connectivity first
         try:
             test_response = requests.get(UPLOAD_URL.replace('/upload_chunk', '/health'), timeout=10)
+            server_avalible = True
             logger.info("✅ Server is reachable")
         except requests.exceptions.RequestException:
-            logger.warning("⚠️  Could not verify server health, proceeding anyway...")
-        
-        uploaded_chunks = 0
-        total_chunks = None
-        
-        for index, total, chunk in generate_chunks(filepath):
-            total_chunks = total
-            try:
-                upload_chunk(filename, index, total, chunk)
-                uploaded_chunks += 1
-            except Exception as e:
-                logger.error(f"❌ Failed to upload chunk {index + 1}/{total} after all retries: {str(e)}")
-                logger.error(f"Upload stopped. {uploaded_chunks}/{total_chunks} chunks uploaded successfully")
-                return False
-        
-        logger.info(f"✅ All {total_chunks} chunks uploaded successfully")
-        return True
+            logger.warning("⚠️  Could not verify server health...")
+
+        if server_avalible:
+            uploaded_chunks = 0
+            total_chunks = None
+            
+            for index, total, chunk in generate_chunks(filepath):
+                total_chunks = total
+                try:
+                    upload_chunk(filename, index, total, chunk)
+                    uploaded_chunks += 1
+                except Exception as e:
+                    logger.error(f"❌ Failed to upload chunk {index + 1}/{total} after all retries: {str(e)}")
+                    logger.error(f"Upload stopped. {uploaded_chunks}/{total_chunks} chunks uploaded successfully")
+                    return False
+            
+            logger.info(f"✅ All {total_chunks} chunks uploaded successfully")
+            return True
+        else:
+            logger.error("❌ Server is not reachable. Upload aborted.")
+            return False
         
     except FileNotFoundError:
         logger.error(f"❌ File not found: {filepath}")

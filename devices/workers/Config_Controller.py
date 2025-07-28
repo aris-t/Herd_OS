@@ -13,6 +13,7 @@ import uvicorn
 import psutil
 import os
 import json
+import threading
 
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
@@ -152,7 +153,6 @@ def create_config_api(device, build_path: Path):
         return FileResponse(build_path / "index.html")
 
     ### Device Status Info and Health Endpoints
-    print("\n\n build status \n\n")
     @app.get("/status", response_model=DeviceStatus)
     async def get_status():
         """Get device status"""
@@ -339,13 +339,39 @@ class Config_Controller(Worker):
         super().__init__(device, name)
         self.device = device
         self.logger = device.logger
-
         self.build_path = Path(__file__).parent.parent.parent / "frontend" / "build"
+        self.server = None
+        self.server_thread = None
 
     def run(self):
         app = create_config_api(self.device, self.build_path)
-        self.logger.info("Starting config API server...")
-        uvicorn.run(app, host="0.0.0.0", port=8000)
+
+        config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+        self.server = uvicorn.Server(config)
+
+        def serve():
+            self.logger.info("Starting config API server...")
+            self.server.run()  # Blocking, but in thread
+
+        self.server_thread = threading.Thread(target=serve)
+        self.server_thread.start()
+
+        # Main loop just waits for stop flag
+        while not self.device.is_stopped.value:
+            time.sleep(0.5)
+
+        self.stop()
+
+    def stop(self):
+        self.is_stopped.value = True
+
+        if self.server and not self.server.should_exit:
+            self.logger.info("Stopping config API server...")
+            self.server.should_exit = True
+
+        if self.server_thread and self.server_thread.is_alive():
+            self.server_thread.join(timeout=5)
+            self.logger.info("Config API server stopped.")
 
 # ----------------------------------------
 

@@ -31,12 +31,12 @@ class Camera(Device):
         self.camera_is_ready = Value('b', False)
         self.in_trial = Value('b', False)
         self.is_passive = Value('b', False)
-        self.is_recording = False
-        self.is_streaming = False
+        self.is_recording = Value('b', False)
+        self.is_streaming = Value('b', False)
 
         # TODO Need to include LETHAL flag for critical processes that fail to start
         self.processes = [
-            Camera_Controller(self, "Camera_Controller", DEBUG=True),
+            Camera_Controller(self, "Camera_Controller", DEBUG=True, LETHAL=True),
             Camera_RTPS(self, "Camera_RTPS", DEBUG=True)
         ]
 
@@ -52,8 +52,8 @@ class Camera(Device):
 
     # Device Specific Methods
     def start_recorder(self,file_base=None, timer=None):
-        if not self.is_recording:
-            self.is_recording = True
+        if not self.is_recording.value:
+            self.is_recording.value = True
             self.logger.info("Starting recorder...")
 
             recorder = Camera_Recorder(self, "Camera_Recorder", file_base=file_base)
@@ -64,8 +64,8 @@ class Camera(Device):
             self.logger.warning("Recorder is already running.")
 
     def stop_recorder(self):
-        if self.is_recording and self.recorders:
-            self.is_recording = False
+        if self.is_recording.value and self.recorders:
+            self.is_recording.value = False
             self.logger.info("Stopping recorder...")
 
             for recorder in self.recorders:

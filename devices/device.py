@@ -14,7 +14,7 @@ from multiprocessing import Manager, Lock, Value
 
 CONFIG_PATH = Path("device.cfg")
 
-class Device:
+class Device():
     def __init__(self, logger = None, DEBUG=False):
         self.device_id = f"dev-{uuid.uuid4().hex[:6]}"
         self.group_id = "default_group"
@@ -31,7 +31,6 @@ class Device:
 
         # Control and health values
         self.is_stopped = Value('b', False)  # Shared flag to signal processes to stop
-        self._initialized = False
 
         # Shared memory manager for inter-process communication
         self.manager = Manager()
@@ -55,7 +54,7 @@ class Device:
 
         # Required base processes
         self._processes = [
-            Config_Controller(self, "ConfigAPI"),
+            #Config_Controller(self, "ConfigAPI"),
             Health_Monitor(self, "HealthMonitor", verbose=False),
         ]
 
@@ -77,7 +76,7 @@ class Device:
         return self._processes + processes
 
     def start(self):
-        print(f"\n\nStarting {len(self.process_list)} processes...")
+        self.logger.info(f"\n\nStarting {len(self.process_list)} processes...")
         for process in self.process_list:
             process.start()
             time.sleep(0.1)  # Small delay to allow processes to initialize
@@ -85,6 +84,7 @@ class Device:
 
     def stop(self):
         self.is_stopped.value = True  # Signal processes to stop
+        self.logger.info(f"Stop Flag Set: {self.is_stopped.value}")
 
         """Undeclare subscribers and clean up."""
         for sub in self.subscribers:
@@ -96,6 +96,14 @@ class Device:
         for process in self.process_list:
             self.is_stopped.value = True  # Signal processes to stop
             process.stop()
+
+        time.sleep(1)  # Allow some time for processes to stop gracefully
+        for process in self.process_list:
+            if process.is_alive():
+                self.logger.info(f"Process {process.name} is still running.")
+            else:
+                self.logger.info(f"Process {process.name} has stopped.")
+
         self.logger.info("Device stopped.")
 
     # Logistics and Utility Methods

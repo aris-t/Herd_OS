@@ -58,7 +58,7 @@ class Camera_Recorder(Worker):
             t. ! queue ! videoconvert ! fakesink sync=false async=false
 
             t. ! queue ! videoconvert !
-            x264enc tune=zerolatency speed-preset=fast pass=qual quantizer=10 !
+            x264enc tune=zerolatency speed-preset=veryfast pass=qual quantizer=10 !
             matroskamux !
             filesink location={self.filename} sync=false
             """

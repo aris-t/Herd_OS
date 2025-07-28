@@ -22,9 +22,11 @@ class TestFactory(GstRtspServer.RTSPMediaFactory):
         self.set_shared(True)
 
 class Camera_RTPS(Worker):
-    def __init__(self, device, name, DEBUG=False):
+    def __init__(self, device, name, DEBUG=False, LETHAL=False):
         super().__init__(device,name)
         self.DEBUG = DEBUG
+        self.LETHAL = LETHAL
+
         self.device = device
         self.server = None
         self.main_loop = None
@@ -40,10 +42,10 @@ class Camera_RTPS(Worker):
 
         res = self.server.attach(None)
         if not res:
-            print("❌ Failed to attach RTSP server")
+            self.logger.info("❌ Failed to attach RTSP server")
             return
         else:
-            print(f"✅ RTSP server running at rtsp://{self.device.ip}:8554/stream")
+            self.logger.info(f"✅ RTSP server running at rtsp://{self.device.ip}:8554/stream")
 
         self.main_loop = GLib.MainLoop()
         
