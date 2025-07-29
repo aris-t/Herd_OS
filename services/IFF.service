@@ -1,0 +1,21 @@
+[Unit]
+Description=IFF Beacon Service
+Documentation=Decalres a Device on the Network
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/sheepdog/Herd_OS
+ExecStart=/usr/bin/python3 /home/sheepdog/Herd_OS/services/IFF_service.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -7,8 +7,8 @@ import socket
 import logging
 import json
 
-CONFIG_PATH = pathlib.Path.home() / "Herd_OS" / "device.cfg"
-LOGGER_PATH = pathlib.Path.home() / "Herd_OS" / "logs.txt"
+CONFIG_PATH = "/home/sheepdog/Herd_OS/device.cfg"
+LOGGER_PATH = "/home/sheepdog/Herd_OS/service_logs.txt"
 HOSTNAME = socket.gethostname()
 
 IFF_PING_S = 1  # seconds between IFF pings
@@ -55,6 +55,7 @@ class IFF_Device_Prototype:
             "hostname": self.hostname,
             "timestamp": time.time()
         }
+        ping_message = json.dumps(ping_message).encode('utf-8')
         return ping_message
 
     def check_ip(self):
@@ -78,7 +79,7 @@ logger = setup_logger("IFF_service", LOGGER_PATH)
 # Set up Zenoh 
 config = zenoh.Config()
 zenoh_client = zenoh.open(config)
-pub = zenoh_client.declare_publisher('device/IFF')
+pub = zenoh_client.declare_publisher('global/IFF')
 
 # Set up signal handlers for graceful shutdown
 signal.signal(signal.SIGINT, signal_handler)
@@ -89,10 +90,18 @@ with open(CONFIG_PATH, 'r') as f:
     device_config = json.load(f)
 
 device = IFF_Device_Prototype(device_config)
+counter = 0
 
 while True:
     ping = device.ping()
     pub.put(ping)
-    logger.info(f"IFF Ping: {ping}")
+    
+    if counter % 100 == 0:
+        logger.info(f"IFF Ping {counter}: {ping}")
+        
+    if counter == 1000:
+        counter = 0
+        
+    counter = counter + 1 
 
     time.sleep(IFF_PING_S)  # Adjust the sleep time as needed

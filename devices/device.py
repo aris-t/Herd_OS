@@ -16,7 +16,7 @@ CONFIG_PATH = Path("device.cfg")
 
 class Device():
     def __init__(self, logger = None, DEBUG=False):
-        self.device_id = f"dev-{uuid.uuid4().hex[:6]}"
+        self.device_id = self.get_device_id()
         self.group_id = "default_group"
 
         if logger is None:
@@ -43,9 +43,15 @@ class Device():
         config = zenoh.Config()
         self.session = zenoh.open(config)
         self.subscribers = [
-            self.session.declare_subscriber("global/COMMAND/*", self.listener),
-            self.session.declare_subscriber(f"{self.group_id}/COMMAND/*", self.listener),
-            self.session.declare_subscriber(f"{self.device_id}/COMMAND/*", self.listener)
+            self.session.declare_subscriber("global/COMMAND", self.listener),
+            self.session.declare_subscriber(f"{self.group_id}/COMMAND", self.listener),
+            self.session.declare_subscriber(f"{self.device_id}/COMMAND", self.listener)
+        ]
+
+        self.publishers = [
+            self.session.declare_publisher("global/ACK"),
+            self.session.declare_publisher(f"{self.group_id}/ACK"),
+            self.session.declare_publisher(f"{self.device_id}/ACK")
         ]
 
         self.message_queue = queue.Queue()
@@ -119,6 +125,19 @@ class Device():
             self.logger.warning(f"⚠️ IP Self-Check failed: {e}")
             ip = "0.0.0.0"
         return ip
+    
+    def get_device_id(self):
+        if CONFIG_PATH.exists():
+            try:
+                with CONFIG_PATH.open("r") as f:
+                    data = json.load(f)
+                    return data.get("device_id", str(uuid.uuid4()))
+            except Exception as e:
+                self.logger.warning(f"Failed to read device.cfg for device_id: {e}")
+                return str(uuid.uuid4())
+        else:
+            self.logger.warning("device.cfg not found, using temporary device_id.")
+            return str(uuid.uuid4())
 
     # Device Lifecycle
     @property
@@ -204,6 +223,9 @@ class Device():
 
     def listener(self, sample):
         payload = bytes(sample.payload).decode("utf-8")
-        self.message_queue.put((payload[0], payload[1:]))
-        self.logger.info(f"Message received: {payload}")
+        #self.logger.info(f"Received message: {payload}")
+        json_data = json.loads(payload)
+        self.message_queue.put((json_data.get("command"), json_data.get("property")))
+        self.logger.info(f"Message received: {json_data}")
+        self.publishers[0].put("ACK")
 

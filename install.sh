@@ -54,6 +54,16 @@ npm install
 npm run build
 cd ..
 
+sudo timedatectl set-ntp true
+sudo pip install eclipse-zenoh --break-system-packages
+
+sudo ln -s /home/sheepdog/Herd_OS/services/IFF.service /etc/systemd/system/IFF.service
+sudo ln -s /home/sheepdog/Herd_OS/services/battery_monitor.service /etc/systemd/system/battery_monitor.service
+sudo systemctl daemon-reload
+
+sudo systemctl start IFF.service
+sudo systemctl start battery_monitor.service
+
 
 # pip install pygobject
 # pip install ply

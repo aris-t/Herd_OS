@@ -7,8 +7,8 @@ Wants=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/home/aris/Desktop/PRL_SW/Herd_OS
-ExecStart=/usr/bin/python3 /home/aris/Desktop/PRL_SW/Herd_OS/devices/base_agents/battery_monitor.py
+WorkingDirectory=/home/sheepdog/Herd_OS
+ExecStart=/usr/bin/python3 /home/sheepdog/Herd_OS/services/battery_monitor_service.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -17,5 +17,5 @@ KillMode=mixed
 KillSignal=SIGTERM
 TimeoutStopSec=30
 
-[Install]
-WantedBy=multi-user.target
+# [Install]
+# WantedBy=multi-user.target

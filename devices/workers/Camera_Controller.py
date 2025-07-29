@@ -11,7 +11,8 @@ import subprocess
 Gst.init(None)
 
 class Camera_Controller(Worker):
-    def __init__(self, device, name, DEBUG=False, LETHAL=False, OVERWRITE_SHM=True):
+    def __init__(self, device, name, DEBUG=False, LETHAL=False, OVERWRITE_SHM=True,
+                 camera_device=None, shm_path=None):
         super().__init__(device,name)
         self.OVERWRITE_SHM = OVERWRITE_SHM
         self.DEBUG = DEBUG
@@ -19,6 +20,7 @@ class Camera_Controller(Worker):
 
         self.device = device
 
+        self.camera_device = camera_device if camera_device else "/dev/video0"
         self.shm_path = "/tmp/testshm"
 
     def startup(self):
@@ -54,7 +56,8 @@ class Camera_Controller(Worker):
             
             # Add a timeoverlay element to inject a timestamp on each frame
             pipeline_str = (
-                "libcamerasrc af-mode=continuous ! "
+                f"libcamerasrc af-mode=continuous ! "
+                # f"libcamerasrc af-mode=continuous camera-name=\"{self.camera_device}\" ! "
 
                 "videoconvert ! "
                 
