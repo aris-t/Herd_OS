@@ -18,6 +18,10 @@ def signal_handler(sig, frame):
     logger.info("Ctrl+C detected. Ending all processes...")
     for device in devices:
         device.stop()
+
+    time.sleep(10)
+    signal.raise_signal(signal.SIGINT)
+
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)

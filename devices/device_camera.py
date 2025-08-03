@@ -48,9 +48,9 @@ class Camera(Device):
 
         for camera in self.cameras:
             camera_worker = Camera_Controller(self, f"Camera_Controller_{camera}", DEBUG=self.DEBUG, camera_device=camera, LETHAL=True)
-            # rtps_worker = Camera_RTPS(self, f"Camera_RTPS_{camera}", DEBUG=self.DEBUG, camera_device=camera)
+            rtps_worker = Camera_RTPS(self, f"Camera_RTPS_{camera}", DEBUG=self.DEBUG, camera_device=camera)
             self.processes.append(camera_worker)
-            # self.processes.append(rtps_worker)
+            self.processes.append(rtps_worker)
 
         self.commands = {
             "start_recorder": lambda parameter: self.start_recorder(),

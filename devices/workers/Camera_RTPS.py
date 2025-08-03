@@ -24,7 +24,7 @@ class TestFactory(GstRtspServer.RTSPMediaFactory):
         if shm_base is None:
             self.shm_base = "/tmp/pi_cam_shm_"
         else:
-            self.logger.warning(f"Using custom shm_base: {shm_base}")
+            self.logger.warning(f"Using custom shm_base: {self.shm_base}")
 
         self.shm_path = f"/tmp/pi_cam_shm_{self.camera_device}"
 
@@ -40,8 +40,8 @@ class TestFactory(GstRtspServer.RTSPMediaFactory):
         self.set_shared(True)
 
 class Camera_RTPS(Worker):
-    def __init__(self, device, name, DEBUG=False, LETHAL=False):
-        super().__init__(device,name)
+    def __init__(self, device, name, camera_device=None, shm_base=None, DEBUG=False, LETHAL=False):
+        super().__init__(device, name)
         self.DEBUG = DEBUG
         self.LETHAL = LETHAL
 
@@ -49,15 +49,20 @@ class Camera_RTPS(Worker):
         self.server = None
         self.main_loop = None
 
+        self.camera_device = camera_device
+        self.shm_base = shm_base
+
     def run(self):
         while self.device.camera_is_ready.value is False:
             self.logger.info("Waiting for camera to be ready...")
             GLib.timeout_add_seconds(1, lambda: None)
         
         self.server = GstRtspServer.RTSPServer()
-        # self.server.set_service(str(self.port))  # Set custom port
+        self.port = 8554 + self.camera_device
+        self.server.set_service(str(self.port))  # Set custom port
+        self.logger.info(f"RTSP server Cam {self.camera_device} running on port {self.port}")
         mounts = self.server.get_mount_points()
-        mounts.add_factory("/stream", TestFactory())
+        mounts.add_factory("/stream", TestFactory(camera_device=self.camera_device, shm_base=self.shm_base))
 
         res = self.server.attach(None)
         
