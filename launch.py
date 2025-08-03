@@ -26,18 +26,18 @@ signal.signal(signal.SIGINT, signal_handler)
 # Launch
 # ----------------------------------------
 if __name__ == "__main__":
-    camera = Camera(logger=logger)
+    camera = Camera(logger=logger, cameras=[0, 1])
     devices = [
         camera
     ]
     for device in devices:
         device.start()
 
-    # time.sleep(10)  # Allow some time for devices to initialize
-    # camera.put_command("start_recorder", None)
-    # time.sleep(10)  # Allow some time for the recorder to start
-    # camera.put_command("stop_recorder", None)
-    # time.sleep(5)  # Allow some time for the recorder to stop
+    time.sleep(10)  # Allow some time for devices to initialize
+    camera.put_command("start_recorder", None)
+    time.sleep(10)  # Allow some time for the recorder to start
+    camera.put_command("stop_recorder", None)
+    time.sleep(5)  # Allow some time for the recorder to stop
 
     # time.sleep(5)
     # camera.start_recorder()

@@ -26,8 +26,9 @@ class Device():
 
         self.DEBUG = DEBUG  # Set to True for verbose logging during development
         self.boot_time = time.time()
+        self.uptime = lambda : time.time() - self.boot_time
+
         self.ip = self.check_ip()
-        self.port = 5555
 
         # Control and health values
         self.is_stopped = Value('b', False)  # Shared flag to signal processes to stop
@@ -60,7 +61,7 @@ class Device():
 
         # Required base processes
         self._processes = [
-            #Config_Controller(self, "ConfigAPI"),
+            Config_Controller(self, "ConfigAPI"),
             Health_Monitor(self, "HealthMonitor", verbose=False),
         ]
 

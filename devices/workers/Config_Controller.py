@@ -258,6 +258,8 @@ def create_config_api(device, build_path: Path):
         """Rename the device"""
         try:
             device_config["name"] = rename_data.name
+            device.name = rename_data.name
+            print("Trying:", device.name)
             device.logger.info(f"Device renamed to: {rename_data.name}")
             return {"message": "Device renamed successfully", "name": rename_data.name}
         except Exception as e:

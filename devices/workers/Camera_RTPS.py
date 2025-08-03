@@ -10,15 +10,33 @@ Gst.init(None)
 from .worker import Worker
 
 class TestFactory(GstRtspServer.RTSPMediaFactory):
-    def __init__(self):
+    def __init__(self, camera_device=None, shm_base=None):
         super().__init__()
+
+        if camera_device is not None:
+            try:
+                self.camera_device = int(camera_device)
+            except (ValueError, TypeError):
+                raise ValueError(f"camera_device must be int, 0, 1, ..., got: {camera_device}")
+        else:
+            self.camera_device = 0
+
+        if shm_base is None:
+            self.shm_base = "/tmp/pi_cam_shm_"
+        else:
+            self.logger.warning(f"Using custom shm_base: {shm_base}")
+
+        self.shm_path = f"/tmp/pi_cam_shm_{self.camera_device}"
+
+
         self.set_launch((
-            "shmsrc socket-path=/tmp/testshm do-timestamp=true is-live=true ! "
+            f"shmsrc socket-path={self.shm_path} do-timestamp=true is-live=true ! "
             "video/x-raw,format=I420,width=2304,height=1296,framerate=30/1 ! "
             "videoconvert ! "
             "x264enc tune=zerolatency bitrate=10000 speed-preset=ultrafast ! "
             "rtph264pay name=pay0 pt=96"
         ))
+
         self.set_shared(True)
 
 class Camera_RTPS(Worker):
@@ -37,10 +55,12 @@ class Camera_RTPS(Worker):
             GLib.timeout_add_seconds(1, lambda: None)
         
         self.server = GstRtspServer.RTSPServer()
+        # self.server.set_service(str(self.port))  # Set custom port
         mounts = self.server.get_mount_points()
         mounts.add_factory("/stream", TestFactory())
 
         res = self.server.attach(None)
+        
         if not res:
             self.logger.info("❌ Failed to attach RTSP server")
             return

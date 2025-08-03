@@ -1,6 +1,7 @@
 # https://gstreamer.freedesktop.org/documentation/x264/index.html?gi-language=c#GstX264EncPreset
 
 #!/usr/bin/env python3
+import time
 from gi.repository import Gst, GLib
 import datetime
 import os
@@ -13,18 +14,29 @@ OUTPUT_DIR = os.path.join(os.getcwd(), "trials")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 class Camera_Recorder(Worker):
-    def __init__(self, device, name, file_base= None, UPLOAD_ON_FINISH=True, DEBUG=False):
+    def __init__(self, device, name, camera_device=None, shm_base=None,
+                 launch_time=None, file_base=None, UPLOAD_ON_FINISH=True,
+                 DEBUG=False):
         super().__init__(device, name)
         self.DEBUG = DEBUG
         self.device = device
         self.UPLOAD_ON_FINISH = UPLOAD_ON_FINISH
         self.file_base = file_base
+        self.camera_device = camera_device
+
+        if shm_base is None:
+            self.shm_base = "/tmp/pi_cam_shm_"
+        else:
+            self.logger.warning(f"Using custom shm_base: {shm_base}")
+
+        self.shm_path = f"/tmp/pi_cam_shm_{self.camera_device}"
+        self.logger.info(f"SHM Path: {self.shm_path}")
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         if self.file_base is not None:
-            self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.file_base}.mkv")
+            self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.file_base}_C{self.camera_device}.mkv")
         else:
-            self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.device.device_id}_output.mkv")
+            self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.device.device_id}_output_C{self.camera_device}.mkv")
 
         # Create a new, dedicated GLib main context
         self.context = GLib.MainContext.new()
@@ -45,13 +57,12 @@ class Camera_Recorder(Worker):
                 self.logger.warning("🚨 Thread default context does NOT match self.context.")
 
             # Step 2
-            socket_path = "/tmp/testshm"
-            if not os.path.exists(socket_path):
-                self.logger.error(f"❌ Error: Socket path '{socket_path}' does not exist.")
-                raise FileNotFoundError(f"Socket path '{socket_path}' does not exist.")
+            if not os.path.exists(self.shm_path):
+                self.logger.error(f"❌ Error: Socket path '{self.shm_path}' does not exist.")
+                raise FileNotFoundError(f"Socket path '{self.shm_path}' does not exist.")
 
             pipeline_str = f"""
-            shmsrc socket-path={socket_path} do-timestamp=true is-live=true !
+            shmsrc socket-path={self.shm_path} do-timestamp=true is-live=true !
             video/x-raw,format=I420,width=2304,height=1296,framerate=30/1 !
             tee name=t
 
@@ -70,7 +81,9 @@ class Camera_Recorder(Worker):
             bus.add_signal_watch()
             bus.connect("message", self.on_message)
 
+            # TODO May need to add syncronization here
             self.pipeline.set_state(Gst.State.PLAYING)
+
             self.logger.info(f"🎥 Recording to {self.filename}...")
 
             # Run the main loop

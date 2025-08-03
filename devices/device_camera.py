@@ -13,7 +13,7 @@ import time
 # # ----------------------------------------
 
 class Camera(Device):
-    def __init__(self, logger=None, DEBUG=False):
+    def __init__(self, logger=None, DEBUG=False, cameras=None):
         super().__init__(logger=logger, DEBUG=DEBUG)
 
         self.multicast_ip = "239.255.42.42"
@@ -34,11 +34,24 @@ class Camera(Device):
         self.is_recording = Value('b', False)
         self.is_streaming = Value('b', False)
 
+        # Multi Camera Support
+        # TODO need to add discovery for multiple cameras, manual for now
+        if cameras is None:
+            self.cameras = [0]
+        else:
+            if isinstance(cameras, list):
+                self.cameras = cameras
+            else:
+                raise ValueError(f"cameras must be a list of integers, got: {cameras}")
+
         # TODO Need to include LETHAL flag for critical processes that fail to start
-        self.processes = [
-            Camera_Controller(self, "Camera_Controller", DEBUG=True, LETHAL=True),
-            Camera_RTPS(self, "Camera_RTPS", DEBUG=True)
-        ]
+        self.processes = []
+
+        for camera in self.cameras:
+            camera_worker = Camera_Controller(self, f"Camera_Controller_{camera}", DEBUG=self.DEBUG, camera_device=camera, LETHAL=True)
+            # rtps_worker = Camera_RTPS(self, f"Camera_RTPS_{camera}", DEBUG=self.DEBUG, camera_device=camera)
+            self.processes.append(camera_worker)
+            # self.processes.append(rtps_worker)
 
         self.commands = {
             "start_recorder": lambda parameter: self.start_recorder(),
@@ -54,12 +67,17 @@ class Camera(Device):
     def start_recorder(self,file_base=None, timer=None):
         if not self.is_recording.value:
             self.is_recording.value = True
-            self.logger.info("Starting recorder...")
+            self.logger.info("Starting recorder(s)...")
 
-            recorder = Camera_Recorder(self, "Camera_Recorder", file_base=file_base)
-            self.processes.append(recorder)
-            self.recorders.append(recorder)
-            recorder.start()
+            for camera in self.cameras:
+                self.logger.info(f"Creating recorder for camera {camera}...")
+                recorder = Camera_Recorder(self, f"Camera_Recorder_{camera}", camera_device=camera, file_base=file_base)
+                self.processes.append(recorder)
+                self.recorders.append(recorder)
+            for recorder in self.recorders:
+                recorder.start()
+            self.logger.info(f"{len(self.recorders)} started successfully.")
+
         else:
             self.logger.warning("Recorder is already running.")
 

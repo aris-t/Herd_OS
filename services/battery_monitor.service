@@ -17,5 +17,5 @@ KillMode=mixed
 KillSignal=SIGTERM
 TimeoutStopSec=30
 
-# [Install]
-# WantedBy=multi-user.target
+[Install]
+WantedBy=multi-user.target

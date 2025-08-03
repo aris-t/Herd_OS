@@ -1,25 +1,39 @@
 #!/usr/bin/python3
-# TODO Make sure running as root user
-
-import os
 import struct
 import smbus2
 import time
 import gpiod
 import signal
 import sys
-import pathlib
 from subprocess import call
+import json
+import logging
 
 import zenoh
 
-from utils.setup_logger import setup_logger
-logger = setup_logger("service_battery_monitor")
-
 # Paths
-CONFIG_PATH = pathlib.Path.home() / "Herd_OS" / "device.cfg"
-LOGGER_PATH = pathlib.Path.home() / "Herd_OS" / "logs.txt"
-HOSTNAME = os.uname().nodename
+CONFIG_PATH = "/home/sheepdog/Herd_OS/device.cfg"
+LOGGER_PATH = "/home/sheepdog/Herd_OS/service_logs.txt"
+
+def setup_logger(name: str, logger_path: str = './logs.txt') -> logging.Logger:
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+
+    fh = logging.FileHandler(logger_path)
+    fh.setFormatter(formatter)
+
+    ch = logging.StreamHandler()
+    ch.setFormatter(formatter)
+
+    if not logger.handlers:
+        logger.addHandler(fh)
+        logger.addHandler(ch)
+
+    return logger
+
+logger = setup_logger("service_battery_monitor", logger_path=LOGGER_PATH)
 
 # User-configurable variables
 SHUTDOWN_THRESHOLD = 3  # Number of consecutive failures required for shutdown
@@ -35,6 +49,8 @@ config.insert_json5("scouting/gossip/enabled", "false")
 config.insert_json5("listen/endpoints", '["tcp/127.0.0.1:0"]')  # Only listen on localhost
 config.insert_json5("connect/endpoints", "[]")  # Don't connect to remote endpoints
 zenoh_client = zenoh.open(config)
+
+# Declare a publisher for battery status messages
 pub = zenoh_client.declare_publisher('local/battery')
 
 def readVoltage(bus):
@@ -84,13 +100,14 @@ try:
         failure_counter = 0
 
         battery_message = {
-            "hostname": HOSTNAME,
             "voltage": readVoltage(bus),
             "capacity": readCapacity(bus),
             "status": get_battery_status(readVoltage(bus)),
             "ac_power": pld_line.get_value(),
             "failure_counter": 0
         }
+        logger.info(f"Battery Status: {battery_message}")
+        battery_message = json.dumps(battery_message).encode('utf-8')
         pub.put(battery_message)
 
         for _ in range(SHUTDOWN_THRESHOLD):
