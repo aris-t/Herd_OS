@@ -18,10 +18,9 @@ class Camera(Device):
 
         self.multicast_ip = "239.255.42.42"
         self.port = 5555
-        self.camera_endpoint = f"udp://{self.multicast_ip}:{self.port}"
+        
         self.target_framerate = 30
         self.target_resolution = "640x480"
-        self.target_bitrate = 4000
 
         # Control flags
 
