@@ -105,18 +105,3 @@ def upload_file_in_chunks(filepath):
     except Exception as e:
         logger.error(f"❌ Unexpected error during upload: {str(e)}")
         return False
-
-def main():
-    parser = argparse.ArgumentParser(description="Chunked upload for large files.")
-    parser.add_argument("filepath", help="Path to the file to upload")
-    args = parser.parse_args()
-    
-    success = upload_file_in_chunks(args.filepath)
-    if not success:
-        logger.error("❌ Upload failed")
-        sys.exit(1)
-    else:
-        logger.info("✅ Upload completed successfully")
-
-if __name__ == "__main__":
-    main()

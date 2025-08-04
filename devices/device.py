@@ -170,9 +170,12 @@ class Device():
             else:
                 self.logger.info(f"{key}: {value}")
 
-        # self.logger.info(f"Child Processes: {self.process_list}")
         for process in self.process_list:
-            self.logger.info(f"  {process}: {process.is_alive()}")  # Ensure process is running
+            self.logger.info(f"  {process} Alive: {process.is_alive()}")  # Ensure process is running
+            try:
+                process.get_health_values()  # Call health method if available
+            except AttributeError:
+                self.logger.warning(f"⚠️ Process {process} does not have health check implemented.")
         return health_values
 
     # Device Lifecycle

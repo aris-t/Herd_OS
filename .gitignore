@@ -129,6 +129,7 @@ cypress/screenshots/
 logs.txt
 *.txt
 *gait_source*
+*.keys
 
 # dependencies
 /node_modules

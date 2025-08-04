@@ -14,7 +14,7 @@ class Worker(Process):
 
         self.is_stopped = self.device.is_stopped
 
-        self.health = Value("i", 0)  # Health status: 0=OK, 1=Warning, 2=Error
+        self._health_ = Value("i", 0)  # Health status: 0=OK, 1=Warning, 2=Error
 
     def run(self):
         while not self.is_stopped.value:
@@ -30,6 +30,21 @@ class Worker(Process):
         time.sleep(1)  # Give some time for the process to stop gracefully
         self.terminate()
         self.logger.info(f"Process {self.name} has ended")
+
+    def get_health_values(self):
+        health_values = {
+            k: v
+            for k, v in vars(self).items()
+            if k.startswith('_health_')
+        }
+        self.logger.info(f"Health Values for {self.name}:")
+        for key, value in health_values.items():
+            # Handle Synchronized wrapper types (multiprocessing.Value, etc.)
+            if hasattr(value, "value"):
+                self.logger.info(f"{key}: {value.value}")
+            else:
+                self.logger.info(f"{key}: {value}")
+        return health_values
 
     def kill_device(self):
         if self.LETHAL:

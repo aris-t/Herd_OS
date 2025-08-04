@@ -51,10 +51,10 @@ if __name__ == "__main__":
     for device in devices:
         device.start()
 
-    # time.sleep(10)  # Allow some time for devices to initialize
+    time.sleep(10)  # Allow some time for devices to initialize
     # camera.put_command("start_recorder", None)
     # time.sleep(5)  # Allow some time for the recorder to start
-    # camera.get_health_values()
+    camera.get_health_values()
     # time.sleep(5)  # Allow some time for the recorder to start
     # camera.put_command("stop_recorder", None)
     # time.sleep(5)  # Allow some time for the recorder to stop

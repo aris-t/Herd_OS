@@ -8,6 +8,7 @@ from gi.repository import Gst, GstRtspServer, GLib
 Gst.init(None)
 
 from .worker import Worker
+from multiprocessing import Value
 
 class TestFactory(GstRtspServer.RTSPMediaFactory):
     def __init__(self, camera_device=None, shm_base=None):
@@ -52,6 +53,10 @@ class Camera_RTPS(Worker):
         self.camera_device = camera_device
         self.shm_base = shm_base
 
+        self._health_shm = Value("i", 0)  # Health status: 0=OK, 1=Warning, 2=Error
+        self._health_RTPS_available = Value("i", 0)  # Health status: 0=OK, 1=Warning, 2=Error
+        self._health_streaming = Value("i", 0)  # Health status: 0=OK, 1=Warning, 2=Error
+
     def run(self):
         while self.device._health_camera_is_ready.value is False:
             self.logger.info("Waiting for camera to be ready...")
@@ -68,6 +73,7 @@ class Camera_RTPS(Worker):
         
         if not res:
             self.logger.info("❌ Failed to attach RTSP server")
+            self._health_RTPS_available.value = 2
             return
         else:
             self.logger.info(f"✅ RTSP server running at rtsp://{self.device.ip}:8554/stream")

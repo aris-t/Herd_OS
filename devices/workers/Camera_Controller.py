@@ -6,7 +6,7 @@ import time
 from .worker import Worker
 import os
 from pathlib import Path
-import json
+from multiprocessing import Value
 
 Gst.init(None)
 
@@ -21,6 +21,9 @@ class Camera_Controller(Worker):
         self.LETHAL = LETHAL
 
         self.device = device
+
+        self._health_shm = Value("i", 0)  # Health status: 0=OK, 1=Warning, 2=Error
+        self._health_camera_available = Value("i", 0)  # Health status: 0=OK, 1=Warning, 2=Error
 
         if camera_device is not None:
             try:
@@ -62,12 +65,7 @@ class Camera_Controller(Worker):
         # Pi 5 Cam 3 Pipeline
         elif mode == "pi5_cam3":
             # TODO Make dynamic config work
-            valid_cfgs = [
-                    [1536, 864, [120.13]],
-                    [2304, 1296, [56.03, 30.0]],  # 30.0 for HDR (typical)
-                    [4608, 2592, [14.35]]
-                ]
-            
+
             # Add a timeoverlay element to inject a timestamp on each frame
             if camera_int == 0:
                 self.logger.info(f"Trying Camera 0")
@@ -116,10 +114,10 @@ class Camera_Controller(Worker):
                     self.logger.info(f"🧹 OVERWRITING existing socket file: {self.shm_path}")
                 except Exception as e:
                     self.logger.warning(f"⚠️ Failed to remove existing socket file: {e}")
-                    self.health.value = 2
+                    self._health_.value = 2
             else:
                 self.logger.warning(f"Shared memory destination '{self.shm_path}' already exists. Aborting.")
-                self.health.value = 2  # Error state
+                self._health_.value = 2  # Error state
                 return
 
         self.logger.info(f"Creating Pipeline with SHM Path: {self.shm_path}")
@@ -131,9 +129,10 @@ class Camera_Controller(Worker):
 
         if os.path.exists(self.shm_path):
             self.logger.info(f"✅ SHM Path exists: {self.shm_path}")
+            self._health_shm.value = 1  # OK state
         else:
             self.logger.error(f"❌ SHM Path does not exist: {self.shm_path}")
-            self.health.value = 2
+            self._health_shm.value = 2
             return
 
         pipeline.set_state(Gst.State.PAUSED)
@@ -141,8 +140,6 @@ class Camera_Controller(Worker):
         
         pipeline.set_state(Gst.State.PLAYING)
         self.logger.info(f"{camera_device} is Playing...")
-
-
 
         # Keep running until user interrupts
         try:
