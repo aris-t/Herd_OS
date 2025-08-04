@@ -53,7 +53,7 @@ class Camera_RTPS(Worker):
         self.shm_base = shm_base
 
     def run(self):
-        while self.device.camera_is_ready.value is False:
+        while self.device._health_camera_is_ready.value is False:
             self.logger.info("Waiting for camera to be ready...")
             GLib.timeout_add_seconds(1, lambda: None)
         

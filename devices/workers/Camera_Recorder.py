@@ -18,6 +18,7 @@ class Camera_Recorder(Worker):
                  launch_time=None, file_base=None, UPLOAD_ON_FINISH=True,
                  DEBUG=False):
         super().__init__(device, name)
+        
         self.DEBUG = DEBUG
         self.device = device
         self.UPLOAD_ON_FINISH = UPLOAD_ON_FINISH
@@ -34,7 +35,7 @@ class Camera_Recorder(Worker):
 
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         if self.file_base is not None:
-            self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.file_base}_C{self.camera_device}.mkv")
+            self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.file_base}_C{self.camera_device}.mkv").replace(" ", "_")
         else:
             self.filename = os.path.join(OUTPUT_DIR, f"{timestamp}_{self.device.device_id}_output_C{self.camera_device}.mkv")
 
@@ -45,11 +46,11 @@ class Camera_Recorder(Worker):
         self.loop = GLib.MainLoop(context=self.context)
 
         # Needed for early Termination
-        self.pipeline = None
+        self.pipeline = self.setup()
 
-    def run(self):
+    def setup(self):
         try:
-            # Step 1: 
+            # Step 1:
             self.context.push_thread_default()
             if GLib.MainContext.get_thread_default() == self.context:
                 self.logger.info("✅ Thread default context matches self.context.")
@@ -61,6 +62,7 @@ class Camera_Recorder(Worker):
                 self.logger.error(f"❌ Error: Socket path '{self.shm_path}' does not exist.")
                 raise FileNotFoundError(f"Socket path '{self.shm_path}' does not exist.")
 
+            self.logger.info(f"\n\nSHM Path: {self.shm_path}, Output File: {self.filename}")
             pipeline_str = f"""
             shmsrc socket-path={self.shm_path} do-timestamp=true is-live=true !
             video/x-raw,format=I420,width=2304,height=1296,framerate=30/1 !
@@ -75,7 +77,14 @@ class Camera_Recorder(Worker):
             """
 
             self.pipeline = Gst.parse_launch(pipeline_str)
+            return self.pipeline
+        
+        except Exception as e:
+            self.logger.error(f"❌ Error setting up GStreamer pipeline: {e}")
+            return None
 
+    def run(self):
+        try:
             # Watch for bus messages to stop cleanly
             bus = self.pipeline.get_bus()
             bus.add_signal_watch()
@@ -83,6 +92,7 @@ class Camera_Recorder(Worker):
 
             # TODO May need to add syncronization here
             self.pipeline.set_state(Gst.State.PLAYING)
+            self.logger.info(f"{type(self.pipeline)}")
 
             self.logger.info(f"🎥 Recording to {self.filename}...")
 
@@ -108,6 +118,12 @@ class Camera_Recorder(Worker):
             self.logger.info("✅ End of Stream")
             self.stop()
 
+    def stand_down(self):
+        self.context.push_thread_default()
+        self.logger.info("Stopping recording...")
+        self.pipeline.set_state(Gst.State.NULL)
+        self.logger.info("✅ Recording Stand Down.")
+
     def stop(self):
         self.logger.info("Stopping the recorder gracefully...")
 
@@ -128,7 +144,6 @@ class Camera_Recorder(Worker):
             if self.pipeline:
                 self.logger.info("✅ Stopping GStreamer pipeline...")
                 self.pipeline.set_state(Gst.State.NULL)
-                self.pipeline = None
                 self.logger.info("Recorder stopped.")
 
             # Quit the GLib loop

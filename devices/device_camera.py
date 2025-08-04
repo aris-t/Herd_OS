@@ -1,37 +1,28 @@
-import os
 from datetime import datetime
 from .device import Device
 from .workers import Camera_Controller
-from .workers import Camera_Recorder  # Ensure this import is correct based on your file structure
-from .workers import Camera_RTPS  # Ensure this import is correct based on your file structure
+from .workers import Camera_Recorder
+from .workers import Camera_RTPS
 
 from multiprocessing import Value
 import time
 
-# # ----------------------------------------
-# # Device
-# # ----------------------------------------
-
+# -----------------------------------------------------------------------
+# Camera Device Class
+# -----------------------------------------------------------------------
 class Camera(Device):
     def __init__(self, logger=None, DEBUG=False, cameras=None):
         super().__init__(logger=logger, DEBUG=DEBUG)
 
-        self.multicast_ip = "239.255.42.42"
-        self.port = 5555
-        
-        self.target_framerate = 30
-        self.target_resolution = "640x480"
-
         # Control flags
-
         self.recorders = []
 
         # Health Flags
-        self.camera_is_ready = Value('b', False)
-        self.in_trial = Value('b', False)
-        self.is_passive = Value('b', False)
-        self.is_recording = Value('b', False)
-        self.is_streaming = Value('b', False)
+        self._health_camera_is_ready = Value('b', False)
+        self._health_in_trial = Value('b', False)
+        self._health_is_passive = Value('b', False)
+        self._health_is_recording = Value('b', False)
+        self._health_is_streaming = Value('b', False)
 
         # Multi Camera Support
         # TODO need to add discovery for multiple cameras, manual for now
@@ -43,6 +34,7 @@ class Camera(Device):
             else:
                 raise ValueError(f"cameras must be a list of integers, got: {cameras}")
 
+        # Processes
         # TODO Need to include LETHAL flag for critical processes that fail to start
         self.processes = []
 
@@ -53,19 +45,22 @@ class Camera(Device):
             self.processes.append(rtps_worker)
 
         self.commands = {
-            "start_recorder": lambda parameter: self.start_recorder(),
-            "stop_recorder": lambda parameter: self.stop_recorder(),
-            "start_trial": lambda trial_name: self.start_trial(trial_name),
-            "stop_trial": lambda parameter: self.stop_trial(),
+            "start_recorder": lambda **properties: self.start_recorder(),
+            "stop_recorder": lambda **properties: self.stop_recorder(),
+            "start_trial": lambda **properties: self.start_trial(properties.get('trial_name', None)),
+            "stop_trial": lambda **properties: self.stop_trial(),
         }
 
     def __setup__(self):
         self.logger.info("Setting up device...")
 
-    # Device Specific Methods
-    def start_recorder(self,file_base=None, timer=None):
-        if not self.is_recording.value:
-            self.is_recording.value = True
+# -----------------------------------------------------------------------
+# Device Specific Methods
+# -----------------------------------------------------------------------
+
+    def start_recorder(self, file_base=None, timer=None):
+        if not self._health_is_recording.value:
+            self._health_is_recording.value = True
             self.logger.info("Starting recorder(s)...")
 
             for camera in self.cameras:
@@ -81,9 +76,12 @@ class Camera(Device):
             self.logger.warning("Recorder is already running.")
 
     def stop_recorder(self):
-        if self.is_recording.value and self.recorders:
-            self.is_recording.value = False
+        if self._health_is_recording.value and self.recorders:
+            self._health_is_recording.value = False
             self.logger.info("Stopping recorder...")
+
+            for recorder in self.recorders:
+                recorder.stand_down()
 
             for recorder in self.recorders:
                 self.logger.info("Stopping recorder process...")
@@ -141,15 +139,29 @@ class Camera(Device):
                 except Exception as e:
                     self.logger.error(f"Error cleaning up process {process.name}: {e}")
 
-    ### Use Specific Methods for Camera Device
+# -----------------------------------------------------------------------
+# Use Specific Methods
+# -----------------------------------------------------------------------
     # Trial Camera
     def start_trial(self, trial_name):
+        if not trial_name:
+            trial_name = "trial_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.start_recorder(file_base=f"{trial_name}_{self.name}")
+        self.logger.info(f"Starting trial: {trial_name} at {timestamp}")
+        if not self._health_in_trial.value:
+            self._health_in_trial.value = True
+            self.logger.info("Starting trial camera...")
+            if not self._health_is_recording.value:
+                self.start_recorder(file_base=f"{trial_name}_{self.name}")
+            else:
+                self.logger.warning("Recorder is already running), skipping start.")
+                self.stop_trial()
 
-    def stop_trial(self):
+    def stop_trial(self, trial_name=None, trial_id=None):
         self.logger.info("Trial stopped.")
         self.stop_recorder()
+        self._health_in_trial.value = False
 
     # Passive Camera
     def start_passive(self):

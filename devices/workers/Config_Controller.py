@@ -15,6 +15,8 @@ import os
 import json
 import threading
 
+import asyncio
+
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse
 
@@ -360,6 +362,7 @@ class Config_Controller(Worker):
 
         # Main loop just waits for stop flag
         while not self.device.is_stopped.value:
+            self.logger.debug("Config Controller still running...")
             time.sleep(0.5)
 
         self.stop()
@@ -370,6 +373,15 @@ class Config_Controller(Worker):
         if self.server and not self.server.should_exit:
             self.logger.info("Stopping config API server...")
             self.server.should_exit = True
+            try:
+                asyncio.run(self.server.shutdown())
+            except RuntimeError:
+                # Already in event loop (common with threading), use a workaround
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.server.shutdown())
+                else:
+                    loop.run_until_complete(self.server.shutdown())
 
         if self.server_thread and self.server_thread.is_alive():
             self.server_thread.join(timeout=5)

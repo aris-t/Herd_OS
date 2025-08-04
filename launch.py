@@ -13,17 +13,31 @@ from utils.setup_logger import setup_logger
 # ----------------------------------------
 logger = setup_logger("Main")
 devices = []
+_shutdown_triggered = False  # Global guard
 
 def signal_handler(sig, frame):
+    global _shutdown_triggered
+
+    if _shutdown_triggered:
+        logger.warning("Shutdown already in progress... ignoring signal.")
+        return
+    _shutdown_triggered = True
+
     logger.info("Ctrl+C detected. Ending all processes...")
+
     for device in devices:
-        device.stop()
+        try:
+            device.stop()
+        except Exception as e:
+            logger.warning(f"Error during shutdown: {e}")
 
-    time.sleep(10)
-    signal.raise_signal(signal.SIGINT)
+    # Optional: give time for logs to flush
+    time.sleep(2)
 
+    # DO NOT raise the signal again — just exit cleanly
     sys.exit(0)
 
+# Register signal only once
 signal.signal(signal.SIGINT, signal_handler)
 
 # ----------------------------------------
@@ -37,11 +51,13 @@ if __name__ == "__main__":
     for device in devices:
         device.start()
 
-    time.sleep(10)  # Allow some time for devices to initialize
-    camera.put_command("start_recorder", None)
-    time.sleep(10)  # Allow some time for the recorder to start
-    camera.put_command("stop_recorder", None)
-    time.sleep(5)  # Allow some time for the recorder to stop
+    # time.sleep(10)  # Allow some time for devices to initialize
+    # camera.put_command("start_recorder", None)
+    # time.sleep(5)  # Allow some time for the recorder to start
+    # camera.get_health_values()
+    # time.sleep(5)  # Allow some time for the recorder to start
+    # camera.put_command("stop_recorder", None)
+    # time.sleep(5)  # Allow some time for the recorder to stop
 
     # time.sleep(5)
     # camera.start_recorder()

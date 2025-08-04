@@ -13,6 +13,8 @@ class Master_Server(Device):
     def __init__(self, logger=None, DEBUG=False):
         super().__init__(logger=logger, DEBUG=DEBUG)
 
+        self.port = 8088
+
         # Control flags
 
         # Health Flags
@@ -35,3 +37,9 @@ class Master_Server(Device):
     def stop_trial(self):
         self.logger.info("Trial stopped.")
         self.stop_recorder()
+
+    def start_recorder(self, file_base=None, timer=None):
+        self.logger.info(f"Record Command Sent")
+
+    def stop_recorder(self):
+        self.logger.info("Record stop Command Sent")

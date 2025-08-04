@@ -5,6 +5,8 @@ from pathlib import Path
 import json
 import zenoh
 import threading
+import os
+import signal
 
 from .workers import Health_Monitor, Config_Controller
 from utils.setup_logger import setup_logger
@@ -12,7 +14,15 @@ from utils.setup_logger import setup_logger
 import queue
 from multiprocessing import Manager, Lock, Value
 
+# ----------------------------------------
+# Config and Paths
+# ----------------------------------------
+
 CONFIG_PATH = Path("device.cfg")
+
+# ----------------------------------------
+# Base Device Class
+# ----------------------------------------
 
 class Device():
     def __init__(self, logger = None, DEBUG=False):
@@ -61,15 +71,17 @@ class Device():
 
         # Required base processes
         self._processes = [
-            Config_Controller(self, "ConfigAPI"),
+            # Config_Controller(self, "ConfigAPI"),
             Health_Monitor(self, "HealthMonitor", verbose=False),
         ]
 
+        # Required base commands
         self._commands = {
-            "stop": lambda parameter: self.stop(),
-            "start": lambda parameter: self.start(),
-            "status": lambda parameter: self.logger.info(f"Device status: {self.name} (ID: {self.device_id}, IP: {self.ip})"),
-            "rename": lambda new_name: setattr(self, 'name', new_name),
+            "stop": lambda **properties: self.stop(**properties),
+            "start": lambda **properties: self.start(**properties),
+            "status": lambda **properties: self.logger.info(f"Device status: {self.name} (ID: {self.device_id}, IP: {self.ip})"),
+            "rename": lambda **properties: setattr(self, 'name', properties.get('new_name', self.name)),
+            "health": lambda **properties: self.get_health_values(**properties),
         }
 
     def __setup__(self):
@@ -93,7 +105,7 @@ class Device():
         self.is_stopped.value = True  # Signal processes to stop
         self.logger.info(f"Stop Flag Set: {self.is_stopped.value}")
 
-        """Undeclare subscribers and clean up."""
+        # Undeclare subscribers and clean up.
         for sub in self.subscribers:
             sub.undeclare()
         self.subscribers.clear()
@@ -103,11 +115,13 @@ class Device():
         for process in self.process_list:
             self.is_stopped.value = True  # Signal processes to stop
             process.stop()
+            process.join(timeout=1)  # Wait for process to finish
 
         time.sleep(1)  # Allow some time for processes to stop gracefully
         for process in self.process_list:
             if process.is_alive():
                 self.logger.info(f"Process {process.name} is still running.")
+                os.kill(process.pid, signal.SIGTERM)
             else:
                 self.logger.info(f"Process {process.name} has stopped.")
 
@@ -140,7 +154,29 @@ class Device():
             self.logger.warning("device.cfg not found, using temporary device_id.")
             return str(uuid.uuid4())
 
+    # Health Monitoring
+
+    def get_health_values(self):
+        health_values = {
+            k: v
+            for k, v in vars(self).items()
+            if k.startswith('_health_')
+        }
+        self.logger.info(f"Health Values:")
+        for key, value in health_values.items():
+            # Handle Synchronized wrapper types (multiprocessing.Value, etc.)
+            if hasattr(value, "value"):
+                self.logger.info(f"{key}: {value.value}")
+            else:
+                self.logger.info(f"{key}: {value}")
+
+        # self.logger.info(f"Child Processes: {self.process_list}")
+        for process in self.process_list:
+            self.logger.info(f"  {process}: {process.is_alive()}")  # Ensure process is running
+        return health_values
+
     # Device Lifecycle
+
     @property
     def name(self):
         """Get name from device.cfg JSON file"""
@@ -207,26 +243,31 @@ class Device():
         while not self.is_stopped.value:
             if not self.message_queue.empty():
                 self.logger.info("Processing command...")
-                command, property = self.message_queue.get()
-                self.logger.info(f"Received command: {command}, property: {property}")
+                command, properties = self.message_queue.get()
+                self.logger.info(f"Received command: {command}, properties: {properties}")
                 handler = self.command_handlers.get(command)
                 if handler:
-                    self.logger.info(f"Executing handler for command: {command}")
-                    handler(property)
+                    try:
+                        self.logger.info(f"Executing handler for command: {command}")
+                        if properties is None:
+                            properties = {}
+                        handler(**properties)
+                    except Exception as e:
+                        self.logger.error(f"Error occurred while executing command '{command}': {e}")
                 else:
                     self.logger.warning(f"No handler found for command: {command}")
             else:
                 time.sleep(0.1)
 
-    def put_command(self, command, property=None):
-        self.message_queue.put((command, property))
-        self.logger.info(f"Message sent: {command}, {property}")
+    def put_command(self, command, properties=None):
+        self.message_queue.put((command, properties))
+        self.logger.info(f"Message sent: {command}, {properties}")
 
     def listener(self, sample):
         payload = bytes(sample.payload).decode("utf-8")
         #self.logger.info(f"Received message: {payload}")
         json_data = json.loads(payload)
-        self.message_queue.put((json_data.get("command"), json_data.get("property")))
+        self.message_queue.put((json_data.get("command"), json_data.get("properties")))
         self.logger.info(f"Message received: {json_data}")
         self.publishers[0].put("ACK")
 

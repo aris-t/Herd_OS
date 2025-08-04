@@ -127,7 +127,7 @@ class Camera_Controller(Worker):
         
         pipeline.set_state(Gst.State.READY)
         self.logger.info(f"{camera_device} is Ready...")
-        self.device.camera_is_ready.value = True
+        self.device._health_camera_is_ready.value = True
 
         if os.path.exists(self.shm_path):
             self.logger.info(f"✅ SHM Path exists: {self.shm_path}")
