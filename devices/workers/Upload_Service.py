@@ -10,8 +10,8 @@ import sys
 logger = setup_logger("Upload_Service")
 
 # Configuration
-CHUNK_SIZE = 1 * 1024 * 1024  # 1MB
-UPLOAD_URL = os.getenv("UPLOAD_ENDPOINT", "http://192.168.1.10:9001/upload_chunk")
+CHUNK_SIZE = 10 * 1024 * 1024  # 1MB
+UPLOAD_URL = os.getenv("UPLOAD_ENDPOINT", "http://192.168.1.24:9001/upload_chunk")
 API_KEY = os.getenv("API_KEY", "your_default_api_key")
 
 def generate_chunks(filepath):

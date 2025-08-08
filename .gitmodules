@@ -1,3 +1,4 @@
 [submodule "frontend"]
    path = frontend
    url = git@github.com:aris-t/herd_os_cfg_frontend.git
+   branch = main

@@ -10,7 +10,8 @@ from multiprocessing import Value
 
 Gst.init(None)
 
-CONFIG_PATH = Path("device.cfg")
+CONFIG_PATH = Path("./device.cfg")
+TESTFILE_PATH = Path("./T_001_A.mp4")
 
 class Camera_Controller(Worker):
     def __init__(self, device, name, DEBUG=False, LETHAL=False, OVERWRITE_SHM=True,
@@ -47,7 +48,7 @@ class Camera_Controller(Worker):
     def gstreamer_factory(self, mode, camera_int=0, width=640, height=480, framerate=30, format="I420", shm_size=13442688, show_preview=False):
         # Build pipeline elements as a list for clarity and flexibility
         # Debug Pipeline
-        if mode == "debug":
+        if mode == "DEBUG":
             actual_camera_device = f"TESTSRC"
             elements = [
                 "videotestsrc is-live=true pattern=ball",
@@ -55,12 +56,27 @@ class Camera_Controller(Worker):
                 "tee name=t",
                 "t. ! queue leaky=downstream max-size-buffers=2",
                 f"videoconvert ! video/x-raw, format={format}",
-                f"shmsink socket-path={self.shm_path} shm-size={shm_size} sync=false wait-for-connection=false"
+                f"shmsink socket-path={self.shm_path} shm-size={shm_size} sync=false wait-for-connection=false",
+                "t. ! fakesink"
             ]
             # Preview 
             if show_preview:
                 elements.append("t. ! queue ! autovideosink")
             pipeline_str = " ! ".join(elements)
+
+        elif mode == "TESTFILE":
+            actual_camera_device = TESTFILE_PATH
+            pipeline_str = (
+                f"multifilesrc location={actual_camera_device} loop=true ! "
+                "qtdemux ! "
+                "h264parse ! "
+                "avdec_h264 ! "
+                f"videoconvert ! video/x-raw, width={width}, height={height}, framerate={framerate}/1 ! "
+                "tee name=t "
+                "t. ! queue leaky=downstream max-size-buffers=2 ! "
+                f"shmsink socket-path={self.shm_path} shm-size={shm_size} sync=false wait-for-connection=false "
+                "t. ! fakesink"
+            )
 
         # Pi 5 Cam 3 Pipeline
         elif mode == "pi5_cam3":
@@ -98,13 +114,29 @@ class Camera_Controller(Worker):
                 f"shmsink socket-path={self.shm_path} shm-size=13442688 sync=false wait-for-connection=false "
                 "t. ! fakesink"
             )
+        else:
+            raise ValueError(f"Unsupported mode: {mode}")
             
         camera_device = f"{mode}_{actual_camera_device}"
         return pipeline_str, camera_device
 
     def run(self):
         self.startup()
-        pipeline_str, camera_device = self.gstreamer_factory(mode="pi5_cam3", camera_int=self.camera_device)
+        if self.DEBUG == 1:
+            self.logger.warning(f"[{self.device.device_id}][{self.name}] Running in DEBUG(1) mode...")
+            pipeline_str, camera_device = self.gstreamer_factory(mode="DEBUG", camera_int=self.camera_device)
+        elif self.DEBUG == 2:
+            self.logger.warning(f"[{self.device.device_id}][{self.name}] Running in TESTFILE mode...")
+            if not TESTFILE_PATH.exists():
+                self.logger.error(f"❌ Test file not found: {TESTFILE_PATH}. Cannot run in TESTFILE mode, falling back to DEBUG(1) mode.")
+                pipeline_str, camera_device = self.gstreamer_factory(mode="DEBUG", camera_int=self.camera_device)
+            else:
+                self.logger.info(f"[{self.device.device_id}][{self.name}] Using test file: {TESTFILE_PATH}")
+                pipeline_str, camera_device = self.gstreamer_factory(mode="TESTFILE", camera_int=self.camera_device)
+        elif self.DEBUG is False:
+            self.logger.info(f"[{self.device.device_id}][{self.name}] Running in PRODUCTION mode...")
+            pipeline_str, camera_device = self.gstreamer_factory(mode="pi5_cam3", camera_int=self.camera_device)
+
         self.logger.info(f"[{self.device.device_id}][{self.name}] GStreamer Pipeline: {pipeline_str}")
 
         if os.path.exists(self.shm_path):

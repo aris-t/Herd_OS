@@ -44,7 +44,7 @@ signal.signal(signal.SIGINT, signal_handler)
 # Launch
 # ----------------------------------------
 if __name__ == "__main__":
-    camera = Camera(logger=logger, cameras=[0, 1])
+    camera = Camera(logger=logger, cameras=[0, 1], DEBUG=2)
     devices = [
         camera
     ]
