@@ -9,6 +9,8 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.text import Text
 import hashlib
+import json
+import uuid
 
 BRANCH = "main"
 MAX_RETRIES = 5
@@ -182,10 +184,32 @@ def has_local_changes():
     status = run_cmd(["git", "status", "--porcelain"])
     return bool(status.strip())
 
-def fallback_to_safe_mode():
-    logger.warning("[yellow]Falling back to safe mode...[/yellow]")
-    python = sys.executable
-    logger.error("Safe mode not implemented yet. Exiting.")
+def startup_device_id():
+    device_id = None
+    if os.path.exists(CFG_FILE):
+        try:
+            with open(CFG_FILE, "r") as f:
+                data = json.load(f)
+                device_id = data.get("device_id")
+        except Exception as e:
+            logger.warning(f"[yellow]Failed to read {CFG_FILE}: {e}[/yellow]")
+
+    if not device_id or device_id is None or device_id == "":
+        device_id = str(uuid.uuid4())
+        try:
+            with open(CFG_FILE, "w") as f:
+                json.dump({"device_id": device_id}, f)
+            logger.info(f"[green]Generated new device_id: {device_id}[/green]")
+        except Exception as e:
+            logger.error(f"[red]Failed to write {CFG_FILE}: {e}[/red]")
+            sys.exit(1)
+    else:
+        logger.info(f"[cyan]Device ID: {device_id}[/cyan]")
+
+# -------------------------
+# Globals logic
+# -------------------------
+CFG_FILE = "./device.cfg"
 
 # -------------------------
 # Main logic
@@ -193,6 +217,8 @@ def fallback_to_safe_mode():
 def main_loop():
     logger.info("\n\n[bold blue]🐑 Starting Herd OS...[/bold blue]")
     logger.info(f"[green]Version {get_version()}[/green] | [cyan]Branch: {BRANCH}[/cyan] \n")
+
+    startup_device_id()
 
     retries = 0
     while retries < MAX_RETRIES:
