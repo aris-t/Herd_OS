@@ -125,6 +125,7 @@ class Camera_Controller(Worker):
         if self.DEBUG == 1:
             self.logger.warning(f"[{self.device.device_id}][{self.name}] Running in DEBUG(1) mode...")
             pipeline_str, camera_device = self.gstreamer_factory(mode="DEBUG", camera_int=self.camera_device)
+
         elif self.DEBUG == 2:
             self.logger.warning(f"[{self.device.device_id}][{self.name}] Running in TESTFILE mode...")
             if not TESTFILE_PATH.exists():
@@ -133,7 +134,8 @@ class Camera_Controller(Worker):
             else:
                 self.logger.info(f"[{self.device.device_id}][{self.name}] Using test file: {TESTFILE_PATH}")
                 pipeline_str, camera_device = self.gstreamer_factory(mode="TESTFILE", camera_int=self.camera_device)
-        elif self.DEBUG is False:
+
+        elif self.DEBUG is False or self.DEBUG == 0:
             self.logger.info(f"[{self.device.device_id}][{self.name}] Running in PRODUCTION mode...")
             pipeline_str, camera_device = self.gstreamer_factory(mode="pi5_cam3", camera_int=self.camera_device)
 

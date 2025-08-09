@@ -1,8 +1,8 @@
 [Unit]
 Description=IFF Beacon Service
 Documentation=Decalres a Device on the Network
-After=network.target
-Wants=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple

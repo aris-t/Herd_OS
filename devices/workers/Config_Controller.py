@@ -350,7 +350,7 @@ class Config_Controller(Worker):
     def run(self):
         app = create_config_api(self.device, self.build_path)
 
-        config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+        config = uvicorn.Config(app, host="0.0.0.0", port=8080, log_level="info")
         self.server = uvicorn.Server(config)
 
         def serve():
@@ -362,7 +362,7 @@ class Config_Controller(Worker):
 
         # Main loop just waits for stop flag
         while not self.device.is_stopped.value:
-            self.logger.debug("Config Controller still running...")
+            # self.logger.debug("Config Controller still running...")
             time.sleep(0.5)
 
         self.stop()

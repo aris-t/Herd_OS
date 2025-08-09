@@ -1,6 +1,11 @@
 import os
 import argparse
 import requests
+import json
+import hmac
+import hashlib
+import time
+import base64
 from hashlib import md5
 from utils.setup_logger import setup_logger
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -9,10 +14,87 @@ import sys
 # Logging setup
 logger = setup_logger("Upload_Service")
 
-# Configuration
-CHUNK_SIZE = 10 * 1024 * 1024  # 1MB
-UPLOAD_URL = os.getenv("UPLOAD_ENDPOINT", "http://192.168.1.24:9001/upload_chunk")
-API_KEY = os.getenv("API_KEY", "your_default_api_key")
+# Load configuration
+def load_config():
+    config_path = os.path.join(os.path.dirname(__file__), '..', '..', 'device.cfg')
+    defaults = {
+        "upload_target": "10.0.0.1",
+        "upload_port": 9001,
+        "upload_api_endpoint": "/upload_chunk",
+        "upload_api_key": "your_default_api_key",
+        "upload_secret_key": "default_secret_key",
+        "upload_chunk_size": 10  # MB
+    }
+    
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        upload_target = config.get("upload_target", defaults["upload_target"])
+        upload_port = config.get("upload_port", defaults["upload_port"])
+        upload_endpoint = config.get("upload_api_endpoint", defaults["upload_api_endpoint"])
+        upload_api_key = config.get("upload_api_key", defaults["upload_api_key"])
+        upload_secret_key = config.get("upload_secret_key", defaults["upload_secret_key"])
+        upload_chunk_size = config.get("upload_chunk_size", defaults["upload_chunk_size"])
+        device_id = config.get("device_id", "unknown_device")
+        
+        # Construct full URL
+        if not upload_target.startswith('http'):
+            upload_url = f"http://{upload_target}:{upload_port}{upload_endpoint}"
+        else:
+            upload_url = f"{upload_target}{upload_endpoint}"
+            
+        return {
+            "upload_url": upload_url,
+            "api_key": upload_api_key,
+            "secret_key": upload_secret_key,
+            "device_id": device_id,
+            "chunk_size": upload_chunk_size * 1024 * 1024  # Convert MB to bytes
+        }
+        
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.warning(f"Could not load config: {e}. Using defaults.")
+        return {
+            "upload_url": f"http://{defaults['upload_target']}:{defaults['upload_port']}{defaults['upload_api_endpoint']}",
+            "api_key": defaults["upload_api_key"],
+            "secret_key": defaults["upload_secret_key"],
+            "device_id": "unknown_device",
+            "chunk_size": defaults["upload_chunk_size"] * 1024 * 1024
+        }
+
+# Load configuration values
+config = load_config()
+CHUNK_SIZE = config["chunk_size"]
+UPLOAD_URL = os.getenv("UPLOAD_ENDPOINT", config["upload_url"])
+API_KEY = os.getenv("API_KEY", config["api_key"])
+SECRET_KEY = config["secret_key"]
+DEVICE_ID = config["device_id"]
+
+def generate_auth_token(device_id, timestamp=None):
+    """
+    Generate a cryptographically signed token that can be verified by the server.
+    
+    Format: device_id:timestamp:signature
+    Where signature = HMAC-SHA256(device_id:timestamp, secret_key)
+    """
+    if timestamp is None:
+        timestamp = int(time.time())
+    
+    # Create the message to sign
+    message = f"{device_id}:{timestamp}"
+    
+    # Generate HMAC signature
+    signature = hmac.new(
+        SECRET_KEY.encode('utf-8'),
+        message.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    # Create the token
+    token = f"{device_id}:{timestamp}:{signature}"
+    
+    # Base64 encode for safe transport
+    return base64.b64encode(token.encode('utf-8')).decode('utf-8')
 
 def generate_chunks(filepath):
     filesize = os.path.getsize(filepath)
@@ -27,8 +109,12 @@ def md5_chunk(data):
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
 def upload_chunk(filename, chunk_index, total_chunks, chunk_data):
+    # Generate a fresh auth token for each request
+    auth_token = generate_auth_token(DEVICE_ID)
+    
     headers = {
-        'Authorization': f'Bearer {API_KEY}',
+        'Authorization': f'Bearer {auth_token}',
+        'X-Device-ID': DEVICE_ID,
         'X-Chunk-Index': str(chunk_index),
         'X-Total-Chunks': str(total_chunks),
         'X-File-Name': filename,
